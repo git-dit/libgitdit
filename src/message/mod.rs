@@ -19,8 +19,6 @@
 //! retrieving lines of text as well as other data from commits conveniently.
 //!
 
-use error::*;
-use error::Kind as EK;
 use git2::Commit;
 use std;
 
@@ -46,8 +44,7 @@ pub trait LineIteratorExt<S>
     /// This function checks whether a message has a subject line and whether
     /// that subject line is followed by an empty line. The message should
     /// already be stripped of comments and trailing whitespace.
-    ///
-    fn check_message_format(self) -> Result<(), git2::Error>;
+    fn is_valid_message(self) -> bool;
 
     /// Create a whitespace and comment stripping iterator
     ///
@@ -93,16 +90,13 @@ impl<L, S> LineIteratorExt<S> for L
 {
     type Iter = L;
 
-    fn check_message_format(mut self) -> Result<(), git2::Error> {
-        if self.next().map(|line| line.as_ref().is_empty()).unwrap_or(true) {
-            return Err(EK::MalformedMessage.into())
+    fn is_valid_message(self) -> bool {
+        let mut lines = self.map(|line| line.as_ref().is_empty());
+        if lines.next().unwrap_or(true) {
+            false
+        } else {
+            lines.next().unwrap_or(true)
         }
-
-        if !self.next().map(|line| line.as_ref().is_empty()).unwrap_or(true) {
-            return Err(EK::MalformedMessage.into())
-        }
-
-        Ok(())
     }
 
     fn stripped(self) -> StrippingIter<Self::Iter, S> {
@@ -215,27 +209,26 @@ mod tests {
 
     #[test]
     fn empty_message_format_check() {
-        let vec : Vec<&str> = Vec::new();
-        assert!(vec.into_iter().check_message_format().is_err());
+        assert!(!Vec::<&str>::new().into_iter().is_valid_message());
     }
 
     #[test]
     fn empty_message_format_check2() {
-        assert!(vec![""].into_iter().check_message_format().is_err());
+        assert!(!vec![""].into_iter().is_valid_message());
     }
 
     #[test]
     fn oneline_message_format_check() {
-        vec!["Foo bar"].into_iter().check_message_format().unwrap();
+        assert!(vec!["Foo bar"].into_iter().is_valid_message());
     }
 
     #[test]
     fn malformed_message_format_check() {
-        assert!(vec!["Foo bar", "Baz"].into_iter().check_message_format().is_err());
+        assert!(!vec!["Foo bar", "Baz"].into_iter().is_valid_message());
     }
 
     #[test]
     fn multiline_message_format_check() {
-        vec!["Foo bar", "", "Baz"].into_iter().check_message_format().unwrap();
+        assert!(vec!["Foo bar", "", "Baz"].into_iter().is_valid_message());
     }
 }
