@@ -352,7 +352,7 @@ impl<'r> hash::Hash for Issue<'r> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use test_utils::TestingRepo;
+    use test_utils::{TestingRepo, empty_tree};
 
     use repository::RepositoryExt;
 
@@ -391,9 +391,7 @@ mod tests {
 
         let sig = git2::Signature::now("Foo Bar", "foo.bar@example.com")
             .expect("Could not create signature");
-        let empty_tree = repo
-            .empty_tree()
-            .expect("Could not create empty tree");
+        let empty_tree = empty_tree(repo);
 
         {
             // messages we're not supposed to see
@@ -437,9 +435,7 @@ mod tests {
 
         let sig = git2::Signature::now("Foo Bar", "foo.bar@example.com")
             .expect("Could not create signature");
-        let empty_tree = repo
-            .empty_tree()
-            .expect("Could not create empty tree");
+        let empty_tree = empty_tree(repo);
 
         {
             // messages we're not supposed to see
@@ -481,9 +477,7 @@ mod tests {
 
         let sig = git2::Signature::now("Foo Bar", "foo.bar@example.com")
             .expect("Could not create signature");
-        let empty_tree = repo
-            .empty_tree()
-            .expect("Could not create empty tree");
+        let empty_tree = empty_tree(repo);
 
         let issue1 = repo
             .create_issue(&sig, &sig, "Test message 1", &empty_tree, vec![])
@@ -524,9 +518,7 @@ mod tests {
 
         let sig = git2::Signature::now("Foo Bar", "foo.bar@example.com")
             .expect("Could not create signature");
-        let empty_tree = repo
-            .empty_tree()
-            .expect("Could not create empty tree");
+        let empty_tree = empty_tree(repo);
 
         let issue = repo
             .create_issue(&sig, &sig, "Test message 2", &empty_tree, vec![])
