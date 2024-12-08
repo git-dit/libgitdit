@@ -35,8 +35,7 @@ pub type UniqueIssues<'a> = HashSet<Issue<'a>>;
 /// This trait is intended as an extension for repositories. It introduces
 /// utility functions for dealing with issues, e.g. for retrieving references
 /// for issues, creating messages and finding the initial message of an issue.
-///
-pub trait RepositoryExt {
+pub trait RepositoryExt<'r> {
     /// Retrieve an issue
     ///
     /// Returns the issue with a given id.
@@ -104,7 +103,7 @@ pub trait RepositoryExt {
     fn collectable_refs<'a>(&'a self) -> gc::CollectableRefs<'a>;
 }
 
-impl RepositoryExt for git2::Repository {
+impl<'r> RepositoryExt<'r> for git2::Repository {
     fn find_issue(&self, id: Oid) -> Result<Issue, git2::Error> {
         let retval = Issue::new(self, id)?;
 
