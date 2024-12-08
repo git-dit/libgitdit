@@ -102,12 +102,6 @@ pub trait RepositoryExt {
     /// Produce a CollectableRefs
     ///
     fn collectable_refs<'a>(&'a self) -> gc::CollectableRefs<'a>;
-
-    /// Get an empty tree
-    ///
-    /// This function returns an empty tree.
-    ///
-    fn empty_tree(&self) -> Result<Tree, git2::Error>;
 }
 
 impl RepositoryExt for git2::Repository {
@@ -215,13 +209,6 @@ impl RepositoryExt for git2::Repository {
         commit: Commit<'a>,
     ) -> Result<iter::IssueMessagesIter<'a>, git2::Error> {
         self.first_parent_messages(commit.id()).map(iter::Messages::until_any_initial)
-    }
-
-    fn empty_tree(&self) -> Result<Tree, git2::Error> {
-        self.treebuilder(None)
-            .and_then(|treebuilder| treebuilder.write())
-            .and_then(|oid| self.find_tree(oid))
-            .wrap_with_kind(EK::CannotBuildTree)
     }
 }
 
