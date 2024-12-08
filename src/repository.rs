@@ -24,7 +24,7 @@ use iter;
 use utils::ResultIterExt;
 
 use error::*;
-use error::Kind as EK;
+use error::{self, Kind as EK};
 
 
 /// Set of unique issues
@@ -43,6 +43,9 @@ pub trait RepositoryExt<'r> {
 
     /// Type used for representing references
     type Reference<'a>;
+
+    /// (Inner) error type associated with this repository
+    type InnerError: for<'a> error::InnerError<Oid = Self::Oid, Reference<'a> = Self::Reference<'a>>;
 
     /// Retrieve an issue
     ///
@@ -110,6 +113,7 @@ pub trait RepositoryExt<'r> {
 impl<'r> RepositoryExt<'r> for git2::Repository {
     type Oid = git2::Oid;
     type Reference<'a> = git2::Reference<'a>;
+    type InnerError = git2::Error;
 
     fn find_issue(&'r self, id: Self::Oid) -> Result<Issue<'r>, git2::Error> {
         let retval = Issue::new(self, id)?;
