@@ -190,7 +190,7 @@ impl<'r> CollectableRefs<'r>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use test_utils::TestingRepo;
+    use test_utils::{TestingRepo, empty_tree};
 
     use repository::RepositoryExt;
 
@@ -203,9 +203,7 @@ mod tests {
 
         let sig = git2::Signature::now("Foo Bar", "foo.bar@example.com")
             .expect("Could not create signature");
-        let empty_tree = repo
-            .empty_tree()
-            .expect("Could not create empty tree");
+        let empty_tree = empty_tree(repo);
 
         let mut refs_to_collect = Vec::new();
         let mut issues = Vec::new();

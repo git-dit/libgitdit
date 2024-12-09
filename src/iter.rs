@@ -367,9 +367,7 @@ impl<'r, I> Iterator for ReferenceDeletingIter<'r, I>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use test_utils::TestingRepo;
-
-    use repository::RepositoryExt;
+    use test_utils::{TestingRepo, empty_tree};
 
     // RefsReferringTo tests
 
@@ -380,9 +378,7 @@ mod tests {
 
         let sig = git2::Signature::now("Foo Bar", "foo.bar@example.com")
             .expect("Could not create signature");
-        let empty_tree = repo
-            .empty_tree()
-            .expect("Could not create empty tree");
+        let empty_tree = empty_tree(repo);
         let empty_parents: Vec<&git2::Commit> = vec![];
 
         let mut commits = repo.revwalk().expect("Could not create revwalk");

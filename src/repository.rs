@@ -102,12 +102,6 @@ pub trait RepositoryExt {
     /// Produce a CollectableRefs
     ///
     fn collectable_refs<'a>(&'a self) -> gc::CollectableRefs<'a>;
-
-    /// Get an empty tree
-    ///
-    /// This function returns an empty tree.
-    ///
-    fn empty_tree(&self) -> Result<Tree, git2::Error>;
 }
 
 impl RepositoryExt for git2::Repository {
@@ -216,13 +210,6 @@ impl RepositoryExt for git2::Repository {
     ) -> Result<iter::IssueMessagesIter<'a>, git2::Error> {
         self.first_parent_messages(commit.id()).map(iter::Messages::until_any_initial)
     }
-
-    fn empty_tree(&self) -> Result<Tree, git2::Error> {
-        self.treebuilder(None)
-            .and_then(|treebuilder| treebuilder.write())
-            .and_then(|oid| self.find_tree(oid))
-            .wrap_with_kind(EK::CannotBuildTree)
-    }
 }
 
 
@@ -231,7 +218,7 @@ impl RepositoryExt for git2::Repository {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use test_utils::TestingRepo;
+    use test_utils::{TestingRepo, empty_tree};
 
     // RepositoryExt tests
 
@@ -242,11 +229,8 @@ mod tests {
 
         let sig = git2::Signature::now("Foo Bar", "foo.bar@example.com")
             .expect("Could not create signature");
-        let empty_tree = repo
-            .empty_tree()
-            .expect("Could not create empty tree");
         let issue = repo
-            .create_issue(&sig, &sig, "Test message 1", &empty_tree, vec![])
+            .create_issue(&sig, &sig, "Test message 1", &empty_tree(repo), vec![])
             .expect("Could not create issue");
 
         repo.find_issue(issue.id())
@@ -260,11 +244,8 @@ mod tests {
 
         let sig = git2::Signature::now("Foo Bar", "foo.bar@example.com")
             .expect("Could not create signature");
-        let empty_tree = repo
-            .empty_tree()
-            .expect("Could not create empty tree");
         let issue = repo
-            .create_issue(&sig, &sig, "Test message 1", &empty_tree, vec![])
+            .create_issue(&sig, &sig, "Test message 1", &empty_tree(repo), vec![])
             .expect("Could not create issue");
 
         let local_head = issue
@@ -283,9 +264,7 @@ mod tests {
 
         let sig = git2::Signature::now("Foo Bar", "foo.bar@example.com")
             .expect("Could not create signature");
-        let empty_tree = repo
-            .empty_tree()
-            .expect("Could not create empty tree");
+        let empty_tree = empty_tree(repo);
         let issue = repo
             .create_issue(&sig, &sig, "Test message 1", &empty_tree, vec![])
             .expect("Could not create issue");
@@ -309,11 +288,8 @@ mod tests {
 
         let sig = git2::Signature::now("Foo Bar", "foo.bar@example.com")
             .expect("Could not create signature");
-        let empty_tree = repo
-            .empty_tree()
-            .expect("Could not create empty tree");
         let issue = repo
-            .create_issue(&sig, &sig, "Test message 1", &empty_tree, vec![])
+            .create_issue(&sig, &sig, "Test message 1", &empty_tree(repo), vec![])
             .expect("Could not create issue");
 
         let mut issues = repo
@@ -334,9 +310,7 @@ mod tests {
 
         let sig = git2::Signature::now("Foo Bar", "foo.bar@example.com")
             .expect("Could not create signature");
-        let empty_tree = repo
-            .empty_tree()
-            .expect("Could not create empty tree");
+        let empty_tree = empty_tree(repo);
         let issue = repo
             .create_issue(&sig, &sig, "Test message 1", &empty_tree, vec![])
             .expect("Could not create issue");
@@ -362,9 +336,7 @@ mod tests {
 
         let sig = git2::Signature::now("Foo Bar", "foo.bar@example.com")
             .expect("Could not create signature");
-        let empty_tree = repo
-            .empty_tree()
-            .expect("Could not create empty tree");
+        let empty_tree = empty_tree(repo);
 
         let issue1 = repo
             .create_issue(&sig, &sig, "Test message 1", &empty_tree, vec![])

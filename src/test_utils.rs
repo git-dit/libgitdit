@@ -54,3 +54,12 @@ impl TestingRepo {
     }
 }
 
+/// Create an empty tree
+///
+/// This function returns an empty tree.
+pub fn empty_tree(repo: &git2::Repository) -> git2::Tree {
+    repo.treebuilder(None)
+        .and_then(|treebuilder| treebuilder.write())
+        .and_then(|oid| repo.find_tree(oid))
+        .expect("Could not create empty tree")
+}
