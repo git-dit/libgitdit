@@ -46,6 +46,7 @@ pub mod message;
 pub mod remote;
 pub mod repository;
 pub mod trailer;
+pub mod traversal;
 
 mod utils;
 

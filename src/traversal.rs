@@ -1,0 +1,7 @@
+// git-dit - the distributed issue tracker for git
+// Copyright (C) 2024 Julian Ganz <neither@nut.email>
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//! Commit/Message traversal
