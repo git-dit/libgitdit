@@ -21,6 +21,7 @@ use git2::{self, Commit, Oid, Tree};
 use gc;
 use issue::Issue;
 use iter;
+use traversal::TraversalBuilder;
 use utils::ResultIterExt;
 
 use error::*;
@@ -46,6 +47,13 @@ pub trait RepositoryExt<'r> {
 
     /// (Inner) error type associated with this repository
     type InnerError: for<'a> error::InnerError<Oid = Self::Oid, Reference<'a> = Self::Reference<'a>>;
+
+    /// [TraversalBuilder] type for this repository
+    type TraversalBuilder: TraversalBuilder<
+        Oid = Self::Oid,
+        Error: Into<Self::InnerError>,
+        BuildError: Into<Self::InnerError>,
+    >;
 
     /// Retrieve an issue
     ///
@@ -111,12 +119,16 @@ pub trait RepositoryExt<'r> {
 
     /// Produce a CollectableRefs
     fn collectable_refs(&'r self) -> gc::CollectableRefs<'r>;
+
+    /// Create a [TraversalBuilder]
+    fn traversal_builder(&'r self) -> Result<Self::TraversalBuilder, Self::InnerError>;
 }
 
 impl<'r> RepositoryExt<'r> for git2::Repository {
     type Oid = git2::Oid;
     type Reference<'a> = git2::Reference<'a>;
     type InnerError = git2::Error;
+    type TraversalBuilder = git2::Revwalk<'r>;
 
     fn find_issue(&'r self, id: Self::Oid) -> Result<Issue<'r>, Self::InnerError> {
         let retval = Issue::new(self, id)?;
@@ -230,6 +242,10 @@ impl<'r> RepositoryExt<'r> for git2::Repository {
 
     fn collectable_refs(&'r self) -> gc::CollectableRefs<'r> {
         gc::CollectableRefs::new(self)
+    }
+
+    fn traversal_builder(&'r self) -> Result<Self::TraversalBuilder, Self::InnerError> {
+        self.revwalk().wrap_with_kind(EK::CannotConstructRevwalk)
     }
 }
 
