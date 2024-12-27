@@ -17,6 +17,8 @@ use std::fmt;
 use std::hash;
 use std::result::Result as RResult;
 
+use crate::repository::RepositoryExt;
+use crate::traversal::TraversalBuilder;
 use error::*;
 use error::Kind as EK;
 use iter::Messages;
@@ -204,6 +206,7 @@ impl<'r> Issue<'r> {
     ///
     pub fn messages(&self) -> Result<Messages<'r>, git2::Error> {
         self.terminated_messages()
+            .map(|b| Messages::new(&self.repo, b))
             .and_then(|mut messages| {
                 // The iterator will iterate over all the messages in the tree
                 // spanned but it will halt at the initial message.
@@ -230,6 +233,7 @@ impl<'r> Issue<'r> {
     ///
     pub fn messages_from(&self, message: Oid) -> Result<Messages<'r>, git2::Error> {
         self.terminated_messages()
+            .map(|b| Messages::new(&self.repo, b))
             .and_then(|mut messages| {
                 messages
                     .revwalk
@@ -240,23 +244,12 @@ impl<'r> Issue<'r> {
             })
     }
 
-    /// Prepare a Messages iterator which will terminate at the initial message
-    ///
-    pub fn terminated_messages(&self) -> Result<Messages<'r>, git2::Error> {
-        Messages::empty(self.repo)
-            .and_then(|mut messages| {
-                // terminate at this issue's initial message
-                messages.terminate_at_initial(self)?;
-
-                // configure the revwalk
-                messages.revwalk.simplify_first_parent().wrap_with_kind(EK::CannotConstructRevwalk)?;
-                messages
-                    .revwalk
-                    .set_sorting(git2::Sort::TOPOLOGICAL)
-                    .wrap_with_kind(EK::CannotConstructRevwalk)?;
-
-                Ok(messages)
-            })
+    /// Prepare a messages iterator which will terminate at the initial message
+    pub fn terminated_messages(&self) -> Result<git2::Revwalk<'r>, git2::Error> {
+        self.repo
+            .traversal_builder()?
+            .with_ends(self.initial_message()?.parent_ids())
+            .wrap_with_kind(EK::CannotConstructRevwalk)
     }
 
     /// Add a new message to the issue
