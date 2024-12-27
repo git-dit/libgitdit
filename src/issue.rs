@@ -213,22 +213,15 @@ impl<'r> Issue<'r> {
             .wrap_with_kind(EK::CannotConstructRevwalk)
     }
 
-    /// Get Messages of the issue starting from a specific one
+    /// Get messages of the issue starting from a specific one
     ///
-    /// The Messages iterator returned will return all first parents up to and
-    /// includingthe initial message of the issue.
-    ///
-    pub fn messages_from(&self, message: Oid) -> Result<Messages<'r>, git2::Error> {
-        self.terminated_messages()
-            .map(|b| Messages::new(&self.repo, b))
-            .and_then(|mut messages| {
-                messages
-                    .revwalk
-                    .push(message)
-                    .wrap_with_kind(EK::CannotConstructRevwalk)?;
-
-                Ok(messages)
-            })
+    /// The [Iterator] returned will return all first parents up to and
+    /// including the initial message of the issue.
+    pub fn messages_from(&self, message: Oid) -> Result<git2::Revwalk<'r>, git2::Error> {
+        self.terminated_messages()?
+            .with_head(message)
+            .and_then(TraversalBuilder::build)
+            .wrap_with_kind(EK::CannotConstructRevwalk)
     }
 
     /// Prepare a messages iterator which will terminate at the initial message
