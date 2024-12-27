@@ -21,7 +21,6 @@ use crate::repository::RepositoryExt;
 use crate::traversal::TraversalBuilder;
 use error::*;
 use error::Kind as EK;
-use iter::Messages;
 
 
 #[derive(PartialEq)]
