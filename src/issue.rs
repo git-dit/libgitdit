@@ -200,30 +200,17 @@ impl<'r> Issue<'r> {
             .wrap_with_kind(EK::CannotGetReferences(glob))
     }
 
-    /// Get all Messages of the issue
-    ///
-    /// The sorting of the underlying revwalk will be set to "topological".
-    ///
-    pub fn messages(&self) -> Result<Messages<'r>, git2::Error> {
-        self.terminated_messages()
-            .map(|b| Messages::new(&self.repo, b))
-            .and_then(|mut messages| {
-                // The iterator will iterate over all the messages in the tree
-                // spanned but it will halt at the initial message.
-                let glob = format!("refs/dit/{}/**", self.ref_part());
-                messages
-                    .revwalk
-                    .push_glob(glob.as_ref())
-                    .wrap_with_kind(EK::CannotGetReferences(glob))?;
-
-                let glob = format!("refs/remotes/*/dit/{}/**", self.ref_part());
-                messages
-                    .revwalk
-                    .push_glob(glob.as_ref())
-                    .wrap_with_kind(EK::CannotGetReferences(glob))?;
-
-                Ok(messages)
-            })
+    /// Get all messages of the issue
+    pub fn messages(&self) -> Result<git2::Revwalk<'r>, git2::Error> {
+        self.all_refs(IssueRefType::Any)?
+            .map(|m| m?.peel(git2::ObjectType::Commit))
+            .map(|m| m.wrap_with_kind(EK::CannotGetReference))
+            .try_fold(self.terminated_messages()?, |b, m| {
+                b.with_head(m?.id())
+                    .wrap_with_kind(EK::CannotConstructRevwalk)
+            })?
+            .build()
+            .wrap_with_kind(EK::CannotConstructRevwalk)
     }
 
     /// Get Messages of the issue starting from a specific one
@@ -493,14 +480,14 @@ mod tests {
         let mut iter1 = issue1
             .messages()
             .expect("Could not create message revwalk iterator");
-        assert_eq!(iter1.next().unwrap().unwrap().id(), issue1.id());
+        assert_eq!(iter1.next().unwrap().unwrap(), issue1.id());
         assert!(iter1.next().is_none());
 
         let mut iter2 = issue2
             .messages()
             .expect("Could not create message revwalk iterator");
-        assert_eq!(iter2.next().unwrap().unwrap().id(), message_id);
-        assert_eq!(iter2.next().unwrap().unwrap().id(), issue2.id());
+        assert_eq!(iter2.next().unwrap().unwrap(), message_id);
+        assert_eq!(iter2.next().unwrap().unwrap(), issue2.id());
         assert!(iter2.next().is_none());
     }
 
