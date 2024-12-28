@@ -72,13 +72,7 @@ pub trait RepositoryExt<'r> {
     ///
     /// Returns the issue containing the message provided
     fn issue_with_message(&'r self, message: Self::Oid) -> Result<Issue<'r>, Self::InnerError> {
-        let messages = self
-            .traversal_builder()?
-            .with_head(message.clone())
-            .and_then(TraversalBuilder::build)
-            .map_err(Into::into)
-            .wrap_with_kind(EK::CannotConstructRevwalk)?;
-        for message in messages {
+        for message in self.first_parent_messages(message.clone())? {
             let message = message.map_err(Into::into).wrap_with_kind(EK::Other)?;
             if let Ok(issue) = self.find_issue(message) {
                 return Ok(issue);
