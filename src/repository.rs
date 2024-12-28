@@ -13,8 +13,10 @@
 //! issue handling utilities for repositories.
 //!
 
-use git2::{self, Commit, Oid, Tree};
 use std::collections::HashSet;
+use std::fmt;
+
+use git2::{self, Commit, Oid, Tree};
 
 use gc;
 use issue::Issue;
@@ -36,6 +38,9 @@ pub type UniqueIssues<'a> = HashSet<Issue<'a>>;
 /// utility functions for dealing with issues, e.g. for retrieving references
 /// for issues, creating messages and finding the initial message of an issue.
 pub trait RepositoryExt<'r> {
+    /// Type used for representing Object IDs
+    type Oid: Clone + fmt::Debug + fmt::Display;
+
     /// Retrieve an issue
     ///
     /// Returns the issue with a given id.
