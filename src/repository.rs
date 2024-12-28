@@ -108,15 +108,6 @@ pub trait RepositoryExt<'r> {
         id: Self::Oid,
     ) -> Result<iter::Messages<'r>, Self::InnerError>;
 
-    /// Get an IssueMessagesIter starting at a given commit
-    ///
-    /// The iterator returned will return messages in reverse order, following
-    /// the first parent, starting with the commit supplied.
-    fn issue_messages_iter(
-        &'r self,
-        commit: Commit,
-    ) -> Result<iter::IssueMessagesIter<'r>, Self::InnerError>;
-
     /// Produce a CollectableRefs
     fn collectable_refs(&'r self) -> gc::CollectableRefs<'r>;
 
@@ -231,13 +222,6 @@ impl<'r> RepositoryExt<'r> for git2::Repository {
                     .wrap_with_kind(EK::CannotConstructRevwalk)?;
                 Ok(messages)
             })
-    }
-
-    fn issue_messages_iter(
-        &'r self,
-        commit: Commit,
-    ) -> Result<iter::IssueMessagesIter<'r>, Self::InnerError> {
-        self.first_parent_messages(commit.id()).map(iter::Messages::until_any_initial)
     }
 
     fn collectable_refs(&'r self) -> gc::CollectableRefs<'r> {
@@ -364,47 +348,6 @@ mod tests {
         assert_eq!(iter.next().unwrap().unwrap().id(), message.id());
         assert_eq!(iter.next().unwrap().unwrap().id(), issue.id());
         assert!(iter.next().is_none());
-    }
-
-    #[test]
-    fn issue_messages_iter() {
-        let mut testing_repo = TestingRepo::new("issue_messages_iter");
-        let repo = testing_repo.repo();
-
-        let sig = git2::Signature::now("Foo Bar", "foo.bar@example.com")
-            .expect("Could not create signature");
-        let empty_tree = empty_tree(repo);
-
-        let issue1 = repo
-            .create_issue(&sig, &sig, "Test message 1", &empty_tree, vec![])
-            .expect("Could not create issue");
-        let initial_message1 = issue1
-            .initial_message()
-            .expect("Could not retrieve initial message");
-
-        let issue2 = repo
-            .create_issue(&sig, &sig, "Test message 2", &empty_tree, vec![&initial_message1])
-            .expect("Could not create issue");
-        let initial_message2 = issue2
-            .initial_message()
-            .expect("Could not retrieve initial message");
-        let message = issue2
-            .add_message(&sig, &sig, "Test message 3", &empty_tree, vec![&initial_message2])
-            .expect("Could not add message");
-        let message_id = message.id();
-
-        let mut iter1 = repo
-            .issue_messages_iter(initial_message1)
-            .expect("Could not create issue messages iterator");
-        assert_eq!(iter1.next().unwrap().unwrap().id(), issue1.id());
-        assert!(iter1.next().is_none());
-
-        let mut iter2 = repo
-            .issue_messages_iter(message)
-            .expect("Could not create issue messages iterator");
-        assert_eq!(iter2.next().unwrap().unwrap().id(), message_id);
-        assert_eq!(iter2.next().unwrap().unwrap().id(), issue2.id());
-        assert!(iter2.next().is_none());
     }
 }
 
