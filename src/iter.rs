@@ -150,48 +150,6 @@ impl<'a, I> MessagesExt for I
     }
 }
 
-
-/// Iterator iterating over messages of an issue
-///
-/// This iterator returns the first parent of a commit or message successively
-/// until an initial issue message is encountered, inclusively.
-///
-pub struct IssueMessagesIter<'r>(Messages<'r>);
-
-impl<'r> IssueMessagesIter<'r> {
-    /// Fuse the iterator is the id refers to an issue
-    ///
-    fn fuse_if_initial(&mut self, id: git2::Oid) -> Result<(), git2::Error> {
-        if self.0.repo.find_issue(id).is_ok() {
-            self.0.revwalk.reset().wrap_with_kind(EK::CannotConstructRevwalk)
-        } else {
-            Ok(())
-        }
-    }
-}
-
-impl<'r> From<Messages<'r>> for IssueMessagesIter<'r> {
-    fn from(messages: Messages<'r>) -> Self {
-        IssueMessagesIter(messages)
-    }
-}
-
-impl<'r> Iterator for IssueMessagesIter<'r> {
-    type Item = Result<git2::Commit<'r>, git2::Error>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0
-            .next()
-            .map(|item| {
-                if let Ok(ref commit) = item {
-                    self.fuse_if_initial(commit.id())?;
-                }
-                item
-            })
-    }
-}
-
-
 /// Iterator over references referring to any of a number of commits
 ///
 /// This iterator wraps a `git2::Revwalk`. It will iterate over the commits
