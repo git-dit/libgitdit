@@ -121,7 +121,13 @@ pub trait RepositoryExt<'r> {
     fn first_parent_messages(
         &'r self,
         id: Self::Oid,
-    ) -> Result<iter::Messages<'r>, Self::InnerError>;
+    ) -> Result<<Self::TraversalBuilder as TraversalBuilder>::Iter, Self::InnerError> {
+        self.traversal_builder()?
+            .with_head(id)
+            .and_then(TraversalBuilder::build)
+            .map_err(Into::into)
+            .wrap_with_kind(EK::CannotConstructRevwalk)
+    }
 
     /// Produce a CollectableRefs
     fn collectable_refs(&'r self) -> gc::CollectableRefs<'r>;
@@ -207,22 +213,6 @@ impl<'r> RepositoryExt<'r> for git2::Repository {
             .and_then(|issue| {
                 issue.update_head(issue.id(), true)?;
                 Ok(issue)
-            })
-    }
-
-    fn first_parent_messages(
-        &'r self,
-        id: Self::Oid,
-    ) -> Result<iter::Messages<'r>, Self::InnerError> {
-        iter::Messages::empty(self)
-            .and_then(|mut messages| {
-                messages.revwalk.push(id)?;
-                messages.revwalk.simplify_first_parent().wrap_with_kind(EK::CannotConstructRevwalk)?;
-                messages
-                    .revwalk
-                    .set_sorting(git2::Sort::TOPOLOGICAL)
-                    .wrap_with_kind(EK::CannotConstructRevwalk)?;
-                Ok(messages)
             })
     }
 
@@ -347,8 +337,8 @@ mod tests {
         let mut iter = repo
             .first_parent_messages(message.id())
             .expect("Could not create first parent iterator");
-        assert_eq!(iter.next().unwrap().unwrap().id(), message.id());
-        assert_eq!(iter.next().unwrap().unwrap().id(), issue.id());
+        assert_eq!(iter.next().unwrap().unwrap(), message.id());
+        assert_eq!(iter.next().unwrap().unwrap(), issue.id());
         assert!(iter.next().is_none());
     }
 }
