@@ -83,12 +83,6 @@ impl<'r> Messages<'r> {
             .wrap_with_kind(EK::CannotConstructRevwalk)
     }
 
-    /// Create an IssueMessagesIter from this instance
-    ///
-    pub fn until_any_initial(self) -> IssueMessagesIter<'r> {
-        self.into()
-    }
-
     /// Terminate this iterator at the given issue's initial message
     ///
     /// This method hides the initial message's parents. It is somewhat more
