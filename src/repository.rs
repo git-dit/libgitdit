@@ -41,6 +41,9 @@ pub trait RepositoryExt<'r> {
     /// Type used for representing Object IDs
     type Oid: Clone + fmt::Debug + fmt::Display;
 
+    /// Type used for representing references
+    type Reference<'a>;
+
     /// Retrieve an issue
     ///
     /// Returns the issue with a given id.
@@ -103,6 +106,7 @@ pub trait RepositoryExt<'r> {
 
 impl<'r> RepositoryExt<'r> for git2::Repository {
     type Oid = git2::Oid;
+    type Reference<'a> = git2::Reference<'a>;
 
     fn find_issue(&'r self, id: Self::Oid) -> Result<Issue<'r>, git2::Error> {
         let retval = Issue::new(self, id)?;
