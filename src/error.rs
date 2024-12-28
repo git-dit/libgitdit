@@ -139,10 +139,21 @@ pub trait InnerError: std::error::Error {
 
     /// Type used for representing refs in actual [Error]s
     type RefName: Clone + fmt::Debug + fmt::Display;
+
+    /// Type used by the underlying implementation for references
+    type Reference<'r>;
+
+    /// Extract the [Self::RefName] of a given [Self::Reference]
+    fn ref_name(reference: &Self::Reference<'_>) -> Self::RefName;
 }
 
 impl InnerError for git2::Error {
     type Oid = git2::Oid;
     type RefName = String;
+    type Reference<'r> = git2::Reference<'r>;
+
+    fn ref_name(reference: &Self::Reference<'_>) -> Self::RefName {
+        reference.name().unwrap_or("invalid!").to_owned()
+    }
 }
 
