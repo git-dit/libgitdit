@@ -50,7 +50,7 @@ pub trait RepositoryExt<'r> {
     /// Retrieve an issue
     ///
     /// Returns the issue with a given id.
-    fn find_issue(&'r self, id: Self::Oid) -> Result<Issue<'r>, git2::Error>;
+    fn find_issue(&'r self, id: Self::Oid) -> Result<Issue<'r>, Self::InnerError>;
 
     /// Retrieve an issue by its head ref
     ///
@@ -58,24 +58,24 @@ pub trait RepositoryExt<'r> {
     fn issue_by_head_ref(
         &'r self,
         head_ref: &Self::Reference<'_>,
-    ) -> Result<Issue<'r>, git2::Error>;
+    ) -> Result<Issue<'r>, Self::InnerError>;
 
     /// Find the issue with a given message in it
     ///
     /// Returns the issue containing the message provided
-    fn issue_with_message(&'r self, message: &Commit) -> Result<Issue<'r>, git2::Error>;
+    fn issue_with_message(&'r self, message: &Commit) -> Result<Issue<'r>, Self::InnerError>;
 
     /// Get issue hashes for a prefix
     ///
     /// This function returns all known issues known to the DIT repo under the
     /// prefix provided (e.g. all issues for which refs exist under
     /// `<prefix>/dit/`). Provide "refs" as the prefix to get only local issues.
-    fn issues_with_prefix(&'r self, prefix: &str) -> Result<UniqueIssues<'r>, git2::Error>;
+    fn issues_with_prefix(&'r self, prefix: &str) -> Result<UniqueIssues<'r>, Self::InnerError>;
 
     /// Get all issue hashes
     ///
     /// This function returns all known issues known to the DIT repo.
-    fn issues(&'r self) -> Result<UniqueIssues<'r>, git2::Error>;
+    fn issues(&'r self) -> Result<UniqueIssues<'r>, Self::InnerError>;
 
     /// Create a new issue with an initial message
     fn create_issue<'a, A, I, J>(
@@ -85,7 +85,7 @@ pub trait RepositoryExt<'r> {
         message: A,
         tree: &Tree,
         parents: I,
-    ) -> Result<Issue<'r>, git2::Error>
+    ) -> Result<Issue<'r>, Self::InnerError>
     where
         A: AsRef<str>,
         I: IntoIterator<Item = &'a Commit<'a>, IntoIter = J>,
@@ -95,7 +95,10 @@ pub trait RepositoryExt<'r> {
     ///
     /// This is a convenience function. It returns an iterator over messages in
     /// reverse order, only following first parents.
-    fn first_parent_messages(&'r self, id: Self::Oid) -> Result<iter::Messages<'r>, git2::Error>;
+    fn first_parent_messages(
+        &'r self,
+        id: Self::Oid,
+    ) -> Result<iter::Messages<'r>, Self::InnerError>;
 
     /// Get an IssueMessagesIter starting at a given commit
     ///
@@ -104,7 +107,7 @@ pub trait RepositoryExt<'r> {
     fn issue_messages_iter(
         &'r self,
         commit: Commit,
-    ) -> Result<iter::IssueMessagesIter<'r>, git2::Error>;
+    ) -> Result<iter::IssueMessagesIter<'r>, Self::InnerError>;
 
     /// Produce a CollectableRefs
     fn collectable_refs(&'r self) -> gc::CollectableRefs<'r>;
@@ -115,7 +118,7 @@ impl<'r> RepositoryExt<'r> for git2::Repository {
     type Reference<'a> = git2::Reference<'a>;
     type InnerError = git2::Error;
 
-    fn find_issue(&'r self, id: Self::Oid) -> Result<Issue<'r>, git2::Error> {
+    fn find_issue(&'r self, id: Self::Oid) -> Result<Issue<'r>, Self::InnerError> {
         let retval = Issue::new(self, id)?;
 
         // make sure the id refers to an issue by checking whether an associated
@@ -130,7 +133,7 @@ impl<'r> RepositoryExt<'r> for git2::Repository {
     fn issue_by_head_ref(
         &'r self,
         head_ref: &Self::Reference<'_>,
-    ) -> Result<Issue<'r>, git2::Error> {
+    ) -> Result<Issue<'r>, Self::InnerError> {
         let name = head_ref.name();
         name.and_then(|name| if name.ends_with("/head") {
                 Some(name)
@@ -149,7 +152,7 @@ impl<'r> RepositoryExt<'r> for git2::Repository {
             .and_then(|id| Issue::new(self, id))
     }
 
-    fn issue_with_message(&'r self, message: &Commit) -> Result<Issue<'r>, git2::Error> {
+    fn issue_with_message(&'r self, message: &Commit) -> Result<Issue<'r>, Self::InnerError> {
         // follow the chain of first parents towards an initial message for
         // which a head exists
         for id in self.first_parent_messages(message.id())?.revwalk {
@@ -162,7 +165,7 @@ impl<'r> RepositoryExt<'r> for git2::Repository {
         Err(EK::NoTreeInitFound(message.id()).into())
     }
 
-    fn issues_with_prefix(&'r self, prefix: &str) -> Result<UniqueIssues<'r>, git2::Error> {
+    fn issues_with_prefix(&'r self, prefix: &str) -> Result<UniqueIssues<'r>, Self::InnerError> {
         let glob = format!("{}/dit/**/head", prefix);
         self.references_glob(&glob)
             .wrap_with_kind(EK::CannotGetReferences(glob))
@@ -185,7 +188,7 @@ impl<'r> RepositoryExt<'r> for git2::Repository {
         message: A,
         tree: &Tree,
         parents: I,
-    ) -> Result<Issue<'r>, git2::Error>
+    ) -> Result<Issue<'r>, Self::InnerError>
     where
         A: AsRef<str>,
         I: IntoIterator<Item = &'a Commit<'a>, IntoIter = J>,
@@ -202,7 +205,10 @@ impl<'r> RepositoryExt<'r> for git2::Repository {
             })
     }
 
-    fn first_parent_messages(&'r self, id: Self::Oid) -> Result<iter::Messages<'r>, git2::Error> {
+    fn first_parent_messages(
+        &'r self,
+        id: Self::Oid,
+    ) -> Result<iter::Messages<'r>, Self::InnerError> {
         iter::Messages::empty(self)
             .and_then(|mut messages| {
                 messages.revwalk.push(id)?;
@@ -218,7 +224,7 @@ impl<'r> RepositoryExt<'r> for git2::Repository {
     fn issue_messages_iter(
         &'r self,
         commit: Commit,
-    ) -> Result<iter::IssueMessagesIter<'r>, git2::Error> {
+    ) -> Result<iter::IssueMessagesIter<'r>, Self::InnerError> {
         self.first_parent_messages(commit.id()).map(iter::Messages::until_any_initial)
     }
 
