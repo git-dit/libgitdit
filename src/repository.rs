@@ -44,7 +44,7 @@ pub trait RepositoryExt<'r> {
     /// Retrieve an issue
     ///
     /// Returns the issue with a given id.
-    fn find_issue(&'r self, id: Oid) -> Result<Issue<'r>, git2::Error>;
+    fn find_issue(&'r self, id: Self::Oid) -> Result<Issue<'r>, git2::Error>;
 
     /// Retrieve an issue by its head ref
     ///
@@ -86,7 +86,7 @@ pub trait RepositoryExt<'r> {
     ///
     /// This is a convenience function. It returns an iterator over messages in
     /// reverse order, only following first parents.
-    fn first_parent_messages(&'r self, id: Oid) -> Result<iter::Messages<'r>, git2::Error>;
+    fn first_parent_messages(&'r self, id: Self::Oid) -> Result<iter::Messages<'r>, git2::Error>;
 
     /// Get an IssueMessagesIter starting at a given commit
     ///
@@ -104,7 +104,7 @@ pub trait RepositoryExt<'r> {
 impl<'r> RepositoryExt<'r> for git2::Repository {
     type Oid = git2::Oid;
 
-    fn find_issue(&'r self, id: Oid) -> Result<Issue<'r>, git2::Error> {
+    fn find_issue(&'r self, id: Self::Oid) -> Result<Issue<'r>, git2::Error> {
         let retval = Issue::new(self, id)?;
 
         // make sure the id refers to an issue by checking whether an associated
@@ -188,7 +188,7 @@ impl<'r> RepositoryExt<'r> for git2::Repository {
             })
     }
 
-    fn first_parent_messages(&'r self, id: Oid) -> Result<iter::Messages<'r>, git2::Error> {
+    fn first_parent_messages(&'r self, id: Self::Oid) -> Result<iter::Messages<'r>, git2::Error> {
         iter::Messages::empty(self)
             .and_then(|mut messages| {
                 messages.revwalk.push(id)?;
