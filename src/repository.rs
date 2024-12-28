@@ -71,7 +71,22 @@ pub trait RepositoryExt<'r> {
     /// Find the issue with a given message in it
     ///
     /// Returns the issue containing the message provided
-    fn issue_with_message(&'r self, message: &Commit) -> Result<Issue<'r>, Self::InnerError>;
+    fn issue_with_message(&'r self, message: Self::Oid) -> Result<Issue<'r>, Self::InnerError> {
+        let messages = self
+            .traversal_builder()?
+            .with_head(message.clone())
+            .and_then(TraversalBuilder::build)
+            .map_err(Into::into)
+            .wrap_with_kind(EK::CannotConstructRevwalk)?;
+        for message in messages {
+            let message = message.map_err(Into::into).wrap_with_kind(EK::Other)?;
+            if let Ok(issue) = self.find_issue(message) {
+                return Ok(issue);
+            }
+        }
+
+        Err(EK::NoTreeInitFound(message).into())
+    }
 
     /// Get issue hashes for a prefix
     ///
@@ -153,19 +168,6 @@ impl<'r> RepositoryExt<'r> for git2::Repository {
                    .wrap_with(|| EK::OidFormatError(hash.to_string()))
             })
             .and_then(|id| Issue::new(self, id))
-    }
-
-    fn issue_with_message(&'r self, message: &Commit) -> Result<Issue<'r>, Self::InnerError> {
-        // follow the chain of first parents towards an initial message for
-        // which a head exists
-        for id in self.first_parent_messages(message.id())?.revwalk {
-            let issue = self.find_issue(id?);
-            if issue.is_ok() {
-                return issue
-            }
-        }
-
-        Err(EK::NoTreeInitFound(message.id()).into())
     }
 
     fn issues_with_prefix(&'r self, prefix: &str) -> Result<UniqueIssues<'r>, Self::InnerError> {
@@ -297,7 +299,7 @@ mod tests {
             .expect("Could not add message");
 
         let retrieved_issue = repo
-            .issue_with_message(&message)
+            .issue_with_message(message.id())
             .expect("Could not retrieve issue");
         assert_eq!(retrieved_issue.id(), issue.id());
     }
