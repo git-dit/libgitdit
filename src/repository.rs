@@ -52,7 +52,10 @@ pub trait RepositoryExt<'r> {
     /// Retrieve an issue by its head ref
     ///
     /// Returns the issue associated with a head reference.
-    fn issue_by_head_ref(&'r self, head_ref: &git2::Reference) -> Result<Issue<'r>, git2::Error>;
+    fn issue_by_head_ref(
+        &'r self,
+        head_ref: &Self::Reference<'_>,
+    ) -> Result<Issue<'r>, git2::Error>;
 
     /// Find the issue with a given message in it
     ///
@@ -120,7 +123,10 @@ impl<'r> RepositoryExt<'r> for git2::Repository {
         }
     }
 
-    fn issue_by_head_ref(&'r self, head_ref: &git2::Reference) -> Result<Issue<'r>, git2::Error> {
+    fn issue_by_head_ref(
+        &'r self,
+        head_ref: &Self::Reference<'_>,
+    ) -> Result<Issue<'r>, git2::Error> {
         let name = head_ref.name();
         name.and_then(|name| if name.ends_with("/head") {
                 Some(name)
