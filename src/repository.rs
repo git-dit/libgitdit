@@ -21,6 +21,7 @@ use git2::{self, Commit, Oid, Tree};
 use gc;
 use issue::Issue;
 use iter;
+use traversal::TraversalBuilder;
 use utils::ResultIterExt;
 
 use error::*;
@@ -47,6 +48,13 @@ pub trait RepositoryExt<'r> {
     /// (Inner) error type associated with this repository
     type InnerError: for<'a> error::InnerError<Oid = Self::Oid, Reference<'a> = Self::Reference<'a>>;
 
+    /// [TraversalBuilder] type for this repository
+    type TraversalBuilder: TraversalBuilder<
+        Oid = Self::Oid,
+        Error: Into<Self::InnerError>,
+        BuildError: Into<Self::InnerError>,
+    >;
+
     /// Retrieve an issue
     ///
     /// Returns the issue with a given id.
@@ -63,7 +71,16 @@ pub trait RepositoryExt<'r> {
     /// Find the issue with a given message in it
     ///
     /// Returns the issue containing the message provided
-    fn issue_with_message(&'r self, message: &Commit) -> Result<Issue<'r>, Self::InnerError>;
+    fn issue_with_message(&'r self, message: Self::Oid) -> Result<Issue<'r>, Self::InnerError> {
+        for message in self.first_parent_messages(message.clone())? {
+            let message = message.map_err(Into::into).wrap_with_kind(EK::Other)?;
+            if let Ok(issue) = self.find_issue(message) {
+                return Ok(issue);
+            }
+        }
+
+        Err(EK::NoTreeInitFound(message).into())
+    }
 
     /// Get issue hashes for a prefix
     ///
@@ -98,25 +115,26 @@ pub trait RepositoryExt<'r> {
     fn first_parent_messages(
         &'r self,
         id: Self::Oid,
-    ) -> Result<iter::Messages<'r>, Self::InnerError>;
-
-    /// Get an IssueMessagesIter starting at a given commit
-    ///
-    /// The iterator returned will return messages in reverse order, following
-    /// the first parent, starting with the commit supplied.
-    fn issue_messages_iter(
-        &'r self,
-        commit: Commit,
-    ) -> Result<iter::IssueMessagesIter<'r>, Self::InnerError>;
+    ) -> Result<<Self::TraversalBuilder as TraversalBuilder>::Iter, Self::InnerError> {
+        self.traversal_builder()?
+            .with_head(id)
+            .and_then(TraversalBuilder::build)
+            .map_err(Into::into)
+            .wrap_with_kind(EK::CannotConstructRevwalk)
+    }
 
     /// Produce a CollectableRefs
     fn collectable_refs(&'r self) -> gc::CollectableRefs<'r>;
+
+    /// Create a [TraversalBuilder]
+    fn traversal_builder(&'r self) -> Result<Self::TraversalBuilder, Self::InnerError>;
 }
 
 impl<'r> RepositoryExt<'r> for git2::Repository {
     type Oid = git2::Oid;
     type Reference<'a> = git2::Reference<'a>;
     type InnerError = git2::Error;
+    type TraversalBuilder = git2::Revwalk<'r>;
 
     fn find_issue(&'r self, id: Self::Oid) -> Result<Issue<'r>, Self::InnerError> {
         let retval = Issue::new(self, id)?;
@@ -150,19 +168,6 @@ impl<'r> RepositoryExt<'r> for git2::Repository {
                    .wrap_with(|| EK::OidFormatError(hash.to_string()))
             })
             .and_then(|id| Issue::new(self, id))
-    }
-
-    fn issue_with_message(&'r self, message: &Commit) -> Result<Issue<'r>, Self::InnerError> {
-        // follow the chain of first parents towards an initial message for
-        // which a head exists
-        for id in self.first_parent_messages(message.id())?.revwalk {
-            let issue = self.find_issue(id?);
-            if issue.is_ok() {
-                return issue
-            }
-        }
-
-        Err(EK::NoTreeInitFound(message.id()).into())
     }
 
     fn issues_with_prefix(&'r self, prefix: &str) -> Result<UniqueIssues<'r>, Self::InnerError> {
@@ -205,31 +210,12 @@ impl<'r> RepositoryExt<'r> for git2::Repository {
             })
     }
 
-    fn first_parent_messages(
-        &'r self,
-        id: Self::Oid,
-    ) -> Result<iter::Messages<'r>, Self::InnerError> {
-        iter::Messages::empty(self)
-            .and_then(|mut messages| {
-                messages.revwalk.push(id)?;
-                messages.revwalk.simplify_first_parent().wrap_with_kind(EK::CannotConstructRevwalk)?;
-                messages
-                    .revwalk
-                    .set_sorting(git2::Sort::TOPOLOGICAL)
-                    .wrap_with_kind(EK::CannotConstructRevwalk)?;
-                Ok(messages)
-            })
-    }
-
-    fn issue_messages_iter(
-        &'r self,
-        commit: Commit,
-    ) -> Result<iter::IssueMessagesIter<'r>, Self::InnerError> {
-        self.first_parent_messages(commit.id()).map(iter::Messages::until_any_initial)
-    }
-
     fn collectable_refs(&'r self) -> gc::CollectableRefs<'r> {
         gc::CollectableRefs::new(self)
+    }
+
+    fn traversal_builder(&'r self) -> Result<Self::TraversalBuilder, Self::InnerError> {
+        self.revwalk().wrap_with_kind(EK::CannotConstructRevwalk)
     }
 }
 
@@ -297,7 +283,7 @@ mod tests {
             .expect("Could not add message");
 
         let retrieved_issue = repo
-            .issue_with_message(&message)
+            .issue_with_message(message.id())
             .expect("Could not retrieve issue");
         assert_eq!(retrieved_issue.id(), issue.id());
     }
@@ -345,50 +331,9 @@ mod tests {
         let mut iter = repo
             .first_parent_messages(message.id())
             .expect("Could not create first parent iterator");
-        assert_eq!(iter.next().unwrap().unwrap().id(), message.id());
-        assert_eq!(iter.next().unwrap().unwrap().id(), issue.id());
+        assert_eq!(iter.next().unwrap().unwrap(), message.id());
+        assert_eq!(iter.next().unwrap().unwrap(), issue.id());
         assert!(iter.next().is_none());
-    }
-
-    #[test]
-    fn issue_messages_iter() {
-        let mut testing_repo = TestingRepo::new("issue_messages_iter");
-        let repo = testing_repo.repo();
-
-        let sig = git2::Signature::now("Foo Bar", "foo.bar@example.com")
-            .expect("Could not create signature");
-        let empty_tree = empty_tree(repo);
-
-        let issue1 = repo
-            .create_issue(&sig, &sig, "Test message 1", &empty_tree, vec![])
-            .expect("Could not create issue");
-        let initial_message1 = issue1
-            .initial_message()
-            .expect("Could not retrieve initial message");
-
-        let issue2 = repo
-            .create_issue(&sig, &sig, "Test message 2", &empty_tree, vec![&initial_message1])
-            .expect("Could not create issue");
-        let initial_message2 = issue2
-            .initial_message()
-            .expect("Could not retrieve initial message");
-        let message = issue2
-            .add_message(&sig, &sig, "Test message 3", &empty_tree, vec![&initial_message2])
-            .expect("Could not add message");
-        let message_id = message.id();
-
-        let mut iter1 = repo
-            .issue_messages_iter(initial_message1)
-            .expect("Could not create issue messages iterator");
-        assert_eq!(iter1.next().unwrap().unwrap().id(), issue1.id());
-        assert!(iter1.next().is_none());
-
-        let mut iter2 = repo
-            .issue_messages_iter(message)
-            .expect("Could not create issue messages iterator");
-        assert_eq!(iter2.next().unwrap().unwrap().id(), message_id);
-        assert_eq!(iter2.next().unwrap().unwrap().id(), issue2.id());
-        assert!(iter2.next().is_none());
     }
 }
 

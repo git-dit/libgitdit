@@ -17,9 +17,10 @@ use std::fmt;
 use std::hash;
 use std::result::Result as RResult;
 
+use crate::repository::RepositoryExt;
+use crate::traversal::TraversalBuilder;
 use error::*;
 use error::Kind as EK;
-use iter::Messages;
 
 
 #[derive(PartialEq)]
@@ -198,65 +199,36 @@ impl<'r> Issue<'r> {
             .wrap_with_kind(EK::CannotGetReferences(glob))
     }
 
-    /// Get all Messages of the issue
-    ///
-    /// The sorting of the underlying revwalk will be set to "topological".
-    ///
-    pub fn messages(&self) -> Result<Messages<'r>, git2::Error> {
-        self.terminated_messages()
-            .and_then(|mut messages| {
-                // The iterator will iterate over all the messages in the tree
-                // spanned but it will halt at the initial message.
-                let glob = format!("refs/dit/{}/**", self.ref_part());
-                messages
-                    .revwalk
-                    .push_glob(glob.as_ref())
-                    .wrap_with_kind(EK::CannotGetReferences(glob))?;
-
-                let glob = format!("refs/remotes/*/dit/{}/**", self.ref_part());
-                messages
-                    .revwalk
-                    .push_glob(glob.as_ref())
-                    .wrap_with_kind(EK::CannotGetReferences(glob))?;
-
-                Ok(messages)
-            })
+    /// Get all messages of the issue
+    pub fn messages(&self) -> Result<git2::Revwalk<'r>, git2::Error> {
+        self.all_refs(IssueRefType::Any)?
+            .map(|m| m?.peel(git2::ObjectType::Commit))
+            .map(|m| m.wrap_with_kind(EK::CannotGetReference))
+            .try_fold(self.terminated_messages()?, |b, m| {
+                b.with_head(m?.id())
+                    .wrap_with_kind(EK::CannotConstructRevwalk)
+            })?
+            .build()
+            .wrap_with_kind(EK::CannotConstructRevwalk)
     }
 
-    /// Get Messages of the issue starting from a specific one
+    /// Get messages of the issue starting from a specific one
     ///
-    /// The Messages iterator returned will return all first parents up to and
-    /// includingthe initial message of the issue.
-    ///
-    pub fn messages_from(&self, message: Oid) -> Result<Messages<'r>, git2::Error> {
-        self.terminated_messages()
-            .and_then(|mut messages| {
-                messages
-                    .revwalk
-                    .push(message)
-                    .wrap_with_kind(EK::CannotConstructRevwalk)?;
-
-                Ok(messages)
-            })
+    /// The [Iterator] returned will return all first parents up to and
+    /// including the initial message of the issue.
+    pub fn messages_from(&self, message: Oid) -> Result<git2::Revwalk<'r>, git2::Error> {
+        self.terminated_messages()?
+            .with_head(message)
+            .and_then(TraversalBuilder::build)
+            .wrap_with_kind(EK::CannotConstructRevwalk)
     }
 
-    /// Prepare a Messages iterator which will terminate at the initial message
-    ///
-    pub fn terminated_messages(&self) -> Result<Messages<'r>, git2::Error> {
-        Messages::empty(self.repo)
-            .and_then(|mut messages| {
-                // terminate at this issue's initial message
-                messages.terminate_at_initial(self)?;
-
-                // configure the revwalk
-                messages.revwalk.simplify_first_parent().wrap_with_kind(EK::CannotConstructRevwalk)?;
-                messages
-                    .revwalk
-                    .set_sorting(git2::Sort::TOPOLOGICAL)
-                    .wrap_with_kind(EK::CannotConstructRevwalk)?;
-
-                Ok(messages)
-            })
+    /// Prepare a messages iterator which will terminate at the initial message
+    pub fn terminated_messages(&self) -> Result<git2::Revwalk<'r>, git2::Error> {
+        self.repo
+            .traversal_builder()?
+            .with_ends(self.initial_message()?.parent_ids())
+            .wrap_with_kind(EK::CannotConstructRevwalk)
     }
 
     /// Add a new message to the issue
@@ -500,14 +472,14 @@ mod tests {
         let mut iter1 = issue1
             .messages()
             .expect("Could not create message revwalk iterator");
-        assert_eq!(iter1.next().unwrap().unwrap().id(), issue1.id());
+        assert_eq!(iter1.next().unwrap().unwrap(), issue1.id());
         assert!(iter1.next().is_none());
 
         let mut iter2 = issue2
             .messages()
             .expect("Could not create message revwalk iterator");
-        assert_eq!(iter2.next().unwrap().unwrap().id(), message_id);
-        assert_eq!(iter2.next().unwrap().unwrap().id(), issue2.id());
+        assert_eq!(iter2.next().unwrap().unwrap(), message_id);
+        assert_eq!(iter2.next().unwrap().unwrap(), issue2.id());
         assert!(iter2.next().is_none());
     }
 
