@@ -29,10 +29,7 @@ pub trait TraversalBuilder: Sized {
     ///
     /// The [Iterator] returned by [Self::build] will yield this [Self::Oid] and
     /// all their ancestors until an `end`.
-    fn with_head(
-        self,
-        head: impl Into<Self::Oid>,
-    ) -> Result<Self, Self::BuildError> {
+    fn with_head(self, head: impl Into<Self::Oid>) -> Result<Self, Self::BuildError> {
         self.with_heads(std::iter::once(head))
     }
 
@@ -49,10 +46,7 @@ pub trait TraversalBuilder: Sized {
     ///
     /// The [Iterator] returned by [Self::build] will never this [Self::Oid] and
     /// will not enqueue their parents.
-    fn with_end(
-        self,
-        end: impl Into<Self::Oid>,
-    ) -> Result<Self, Self::BuildError> {
+    fn with_end(self, end: impl Into<Self::Oid>) -> Result<Self, Self::BuildError> {
         self.with_ends(std::iter::once(end))
     }
 
