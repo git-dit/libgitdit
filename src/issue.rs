@@ -18,7 +18,7 @@ use std::hash;
 use std::result::Result as RResult;
 
 use crate::repository::RepositoryExt;
-use crate::traversal::TraversalBuilder;
+use crate::traversal::{TraversalBuilder, Traversible};
 use error::*;
 use error::Kind as EK;
 

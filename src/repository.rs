@@ -18,6 +18,7 @@ use std::fmt;
 
 use git2::{self, Commit, Oid, Tree};
 
+use crate::traversal::Traversible;
 use gc;
 use issue::Issue;
 use iter;
@@ -25,7 +26,7 @@ use traversal::TraversalBuilder;
 use utils::ResultIterExt;
 
 use error::*;
-use error::{self, Kind as EK};
+use error::{Kind as EK};
 
 
 /// Set of unique issues
@@ -38,23 +39,7 @@ pub type UniqueIssues<'a> = HashSet<Issue<'a>>;
 /// This trait is intended as an extension for repositories. It introduces
 /// utility functions for dealing with issues, e.g. for retrieving references
 /// for issues, creating messages and finding the initial message of an issue.
-pub trait RepositoryExt<'r> {
-    /// Type used for representing Object IDs
-    type Oid: Clone + fmt::Debug + fmt::Display;
-
-    /// Type used for representing references
-    type Reference<'a>;
-
-    /// (Inner) error type associated with this repository
-    type InnerError: for<'a> error::InnerError<Oid = Self::Oid, Reference<'a> = Self::Reference<'a>>;
-
-    /// [TraversalBuilder] type for this repository
-    type TraversalBuilder: TraversalBuilder<
-        Oid = Self::Oid,
-        Error: Into<Self::InnerError>,
-        BuildError: Into<Self::InnerError>,
-    >;
-
+pub trait RepositoryExt<'r>: Traversible<'r> {
     /// Retrieve an issue
     ///
     /// Returns the issue with a given id.
@@ -125,17 +110,9 @@ pub trait RepositoryExt<'r> {
 
     /// Produce a CollectableRefs
     fn collectable_refs(&'r self) -> gc::CollectableRefs<'r>;
-
-    /// Create a [TraversalBuilder]
-    fn traversal_builder(&'r self) -> Result<Self::TraversalBuilder, Self::InnerError>;
 }
 
 impl<'r> RepositoryExt<'r> for git2::Repository {
-    type Oid = git2::Oid;
-    type Reference<'a> = git2::Reference<'a>;
-    type InnerError = git2::Error;
-    type TraversalBuilder = git2::Revwalk<'r>;
-
     fn find_issue(&'r self, id: Self::Oid) -> Result<Issue<'r>, Self::InnerError> {
         let retval = Issue::new(self, id)?;
 
@@ -212,10 +189,6 @@ impl<'r> RepositoryExt<'r> for git2::Repository {
 
     fn collectable_refs(&'r self) -> gc::CollectableRefs<'r> {
         gc::CollectableRefs::new(self)
-    }
-
-    fn traversal_builder(&'r self) -> Result<Self::TraversalBuilder, Self::InnerError> {
-        self.revwalk().wrap_with_kind(EK::CannotConstructRevwalk)
     }
 }
 
