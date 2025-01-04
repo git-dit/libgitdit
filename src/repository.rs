@@ -14,7 +14,6 @@
 //!
 
 use std::collections::HashSet;
-use std::fmt;
 
 use git2::{self, Commit, Oid, Tree};
 
@@ -22,7 +21,6 @@ use crate::traversal::Traversible;
 use gc;
 use issue::Issue;
 use iter;
-use traversal::TraversalBuilder;
 use utils::ResultIterExt;
 
 use error::*;
