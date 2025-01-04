@@ -6,6 +6,34 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 //! Commit/Message traversal
 
+use crate::base::Base;
+use crate::error::{self, ResultExt};
+
+/// Entity containing commit graph information
+///
+/// A [Traversible] contains commit graph information and allows constructing an
+/// [Iterator] for traversing this graph via a [TraversalBuilder].
+pub trait Traversible<'t>: Base {
+    /// [TraversalBuilder] type for this repository
+    type TraversalBuilder: TraversalBuilder<
+        Oid = Self::Oid,
+        Error: Into<Self::InnerError>,
+        BuildError: Into<Self::InnerError>,
+    >;
+
+    /// Create a [TraversalBuilder]
+    fn traversal_builder(&'t self) -> error::Result<Self::TraversalBuilder, Self::InnerError>;
+}
+
+impl<'t> Traversible<'t> for git2::Repository {
+    type TraversalBuilder = git2::Revwalk<'t>;
+
+    fn traversal_builder(&'t self) -> error::Result<Self::TraversalBuilder, Self::InnerError> {
+        self.revwalk()
+            .wrap_with_kind(error::Kind::CannotConstructRevwalk)
+    }
+}
+
 /// Builder for a commit/message traversing [Iterator]
 pub trait TraversalBuilder: Sized {
     /// Object id type associated with this traversal builder
