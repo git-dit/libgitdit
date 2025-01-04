@@ -93,21 +93,6 @@ pub trait RepositoryExt<'r>: Traversible<'r> {
         I: IntoIterator<Item = &'a Commit<'a>, IntoIter = J>,
         J: Iterator<Item = &'a Commit<'a>>;
 
-    /// Get an revwalk configured as a first parent iterator
-    ///
-    /// This is a convenience function. It returns an iterator over messages in
-    /// reverse order, only following first parents.
-    fn first_parent_messages(
-        &'r self,
-        id: Self::Oid,
-    ) -> Result<<Self::TraversalBuilder as TraversalBuilder>::Iter, Self::InnerError> {
-        self.traversal_builder()?
-            .with_head(id)
-            .and_then(TraversalBuilder::build)
-            .map_err(Into::into)
-            .wrap_with_kind(EK::CannotConstructRevwalk)
-    }
-
     /// Produce a CollectableRefs
     fn collectable_refs(&'r self) -> gc::CollectableRefs<'r>;
 }

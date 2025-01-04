@@ -21,6 +21,21 @@ pub trait Traversible<'t>: Base {
         BuildError: Into<Self::InnerError>,
     >;
 
+    /// Get an [Iterator] yielding commits, following the chain of first parents
+    ///
+    /// This is a convenience function. It returns an [Iterator] over commits in
+    /// reverse order, only following first parent commits.
+    fn first_parent_messages(
+        &'t self,
+        id: Self::Oid,
+    ) -> error::Result<<Self::TraversalBuilder as TraversalBuilder>::Iter, Self::InnerError> {
+        self.traversal_builder()?
+            .with_head(id)
+            .and_then(TraversalBuilder::build)
+            .map_err(Into::into)
+            .wrap_with_kind(error::Kind::CannotConstructRevwalk)
+    }
+
     /// Create a [TraversalBuilder]
     fn traversal_builder(&'t self) -> error::Result<Self::TraversalBuilder, Self::InnerError>;
 }
