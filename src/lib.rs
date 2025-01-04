@@ -38,6 +38,7 @@
 extern crate git2;
 extern crate regex;
 
+pub mod base;
 pub mod error;
 pub mod gc;
 pub mod issue;
