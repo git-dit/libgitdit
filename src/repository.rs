@@ -178,7 +178,7 @@ impl<'r> RepositoryExt<'r> for git2::Repository {
             .collect_result()
     }
 
-    fn issues(&'r self) -> Result<UniqueIssues<'r>, git2::Error> {
+    fn issues(&'r self) -> Result<UniqueIssues<'r>, Self::InnerError> {
         let glob = "**/dit/**/head";
         self.references_glob(glob)
             .wrap_with(|| EK::CannotGetReferences(glob.to_owned()))
