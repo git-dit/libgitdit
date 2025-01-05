@@ -6,6 +6,49 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 //! Commit/Message traversal
 
+use crate::base::Base;
+use crate::error::{self, ResultExt};
+
+/// Entity containing commit graph information
+///
+/// A [Traversible] contains commit graph information and allows constructing an
+/// [Iterator] for traversing this graph via a [TraversalBuilder].
+pub trait Traversible<'t>: Base {
+    /// [TraversalBuilder] type for this repository
+    type TraversalBuilder: TraversalBuilder<
+        Oid = Self::Oid,
+        Error: Into<Self::InnerError>,
+        BuildError: Into<Self::InnerError>,
+    >;
+
+    /// Get an [Iterator] yielding commits, following the chain of first parents
+    ///
+    /// This is a convenience function. It returns an [Iterator] over commits in
+    /// reverse order, only following first parent commits.
+    fn first_parent_messages(
+        &'t self,
+        id: Self::Oid,
+    ) -> error::Result<<Self::TraversalBuilder as TraversalBuilder>::Iter, Self::InnerError> {
+        self.traversal_builder()?
+            .with_head(id)
+            .and_then(TraversalBuilder::build)
+            .map_err(Into::into)
+            .wrap_with_kind(error::Kind::CannotConstructRevwalk)
+    }
+
+    /// Create a [TraversalBuilder]
+    fn traversal_builder(&'t self) -> error::Result<Self::TraversalBuilder, Self::InnerError>;
+}
+
+impl<'t> Traversible<'t> for git2::Repository {
+    type TraversalBuilder = git2::Revwalk<'t>;
+
+    fn traversal_builder(&'t self) -> error::Result<Self::TraversalBuilder, Self::InnerError> {
+        self.revwalk()
+            .wrap_with_kind(error::Kind::CannotConstructRevwalk)
+    }
+}
+
 /// Builder for a commit/message traversing [Iterator]
 pub trait TraversalBuilder: Sized {
     /// Object id type associated with this traversal builder
