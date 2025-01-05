@@ -17,6 +17,7 @@ use std::collections::HashSet;
 
 use git2::{self, Commit, Oid, Tree};
 
+use crate::base::Base;
 use crate::traversal::Traversible;
 use gc;
 use issue::Issue;
@@ -37,7 +38,7 @@ pub type UniqueIssues<'a> = HashSet<Issue<'a>>;
 /// This trait is intended as an extension for repositories. It introduces
 /// utility functions for dealing with issues, e.g. for retrieving references
 /// for issues, creating messages and finding the initial message of an issue.
-pub trait RepositoryExt<'r>: Traversible<'r> {
+pub trait RepositoryExt<'r>: Base {
     /// Retrieve an issue
     ///
     /// Returns the issue with a given id.
@@ -54,7 +55,10 @@ pub trait RepositoryExt<'r>: Traversible<'r> {
     /// Find the issue with a given message in it
     ///
     /// Returns the issue containing the message provided
-    fn issue_with_message(&'r self, message: Self::Oid) -> Result<Issue<'r>, Self::InnerError> {
+    fn issue_with_message(&'r self, message: Self::Oid) -> Result<Issue<'r>, Self::InnerError>
+    where
+        Self: Traversible<'r>,
+    {
         for message in self.first_parent_messages(message.clone())? {
             let message = message.map_err(Into::into).wrap_with_kind(EK::Other)?;
             if let Ok(issue) = self.find_issue(message) {
