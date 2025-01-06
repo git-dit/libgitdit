@@ -54,6 +54,15 @@ impl<'r> Reference<'r> for git2::Reference<'_> {
     }
 }
 
+/// Kind of reference
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub enum Kind<O> {
+    /// The reference is a head reference for an issue
+    Head,
+    /// The reference is a leaf reference for an issue
+    Leaf(O),
+}
+
 /// Identifier/file name for the head reference of an issue
 pub(crate) const HEAD_COMPONENT: &str = "head";
 
