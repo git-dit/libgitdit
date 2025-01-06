@@ -121,8 +121,7 @@ impl TraversalBuilder for git2::Revwalk<'_> {
     ) -> Result<Self, Self::BuildError> {
         heads
             .into_iter()
-            .map(|oid| self.push(oid.into()))
-            .collect::<Result<(), Self::Error>>()?;
+            .try_for_each(|oid| self.push(oid.into()))?;
         Ok(self)
     }
 
@@ -130,9 +129,7 @@ impl TraversalBuilder for git2::Revwalk<'_> {
         mut self,
         ends: impl IntoIterator<Item = impl Into<Self::Oid>>,
     ) -> Result<Self, Self::BuildError> {
-        ends.into_iter()
-            .map(|oid| self.hide(oid.into()))
-            .collect::<Result<(), Self::Error>>()?;
+        ends.into_iter().try_for_each(|oid| self.hide(oid.into()))?;
         Ok(self)
     }
 
