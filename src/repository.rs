@@ -39,7 +39,7 @@ pub type UniqueIssues<'r, R> = HashSet<Issue<'r, R>>;
 /// This trait is intended as an extension for repositories. It introduces
 /// utility functions for dealing with issues, e.g. for retrieving references
 /// for issues, creating messages and finding the initial message of an issue.
-pub trait RepositoryExt<'r>: Base + Sized {
+pub trait RepositoryExt<'r>: reference::Store<'r> + Sized {
     /// Retrieve an issue
     ///
     /// Returns the issue with a given id.
