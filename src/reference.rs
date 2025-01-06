@@ -9,13 +9,15 @@
 use std::borrow::Cow;
 use std::path::Path;
 
+use poppable_path::Poppable;
+
 /// A git reference
 pub trait Reference<'r> {
     /// Type for reference names
     type Name;
 
     /// Type for holding [Path] represenations of references
-    type Path: AsRef<Path>;
+    type Path: Poppable + AsRef<Path>;
 
     /// Type used for representing Object IDs
     type Oid: std::str::FromStr;
@@ -25,6 +27,29 @@ pub trait Reference<'r> {
 
     /// Retrieve the [Path] representation of this reference
     fn as_path(&'r self) -> Self::Path;
+
+    /// Extract the defining parts of this reference regarding the issue
+    fn parts(&'r self) -> Option<Parts<Self::Path, Self::Oid>> {
+        let mut path = self.as_path();
+
+        let kind = if path.as_ref().ends_with(HEAD_COMPONENT) {
+            Kind::Head
+        } else {
+            let id = path.as_ref().file_name()?.to_str()?.parse().ok()?;
+            path.pop().then_some(())?;
+            path.as_ref().ends_with(LEAF_COMPONENT).then_some(())?;
+            Kind::Leaf(id)
+        };
+
+        path.pop().then_some(())?;
+
+        let issue = path.as_ref().file_name()?.to_str()?.parse().ok()?;
+        path.pop().then_some(Parts {
+            prefix: path,
+            issue,
+            kind,
+        })
+    }
 
     /// Retrieve the target of this reference
     ///
@@ -52,6 +77,17 @@ impl<'r> Reference<'r> for git2::Reference<'_> {
     fn target(&'r self) -> Option<Self::Oid> {
         self.target()
     }
+}
+
+/// Parts of a [Reference] associated to an issue
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Parts<P, O> {
+    /// Path or namespace under which the issue resides
+    pub prefix: P,
+    /// Id of the associated issue
+    pub issue: O,
+    /// Kind of [Reference]
+    pub kind: Kind<O>,
 }
 
 /// Kind of reference
@@ -115,5 +151,66 @@ pub(crate) mod tests {
         fn target(&'r self) -> Option<Self::Oid> {
             self.target
         }
+    }
+
+    #[test]
+    fn ref_parts_headref() {
+        let parts = TestRef::from("refs/dit/65b56706fdc3501749d008750c61a1f24b888f72/head")
+            .parts()
+            .expect("Could not extract parts");
+        assert_eq!(parts.prefix, Path::new("refs/dit"));
+        assert_eq!(parts.issue, "65b56706fdc3501749d008750c61a1f24b888f72");
+        assert_eq!(parts.kind, Kind::Head);
+    }
+
+    #[test]
+    fn ref_parts_leaf() {
+        let parts = TestRef::from("refs/dit/65b56706fdc3501749d008750c61a1f24b888f72/leaves/f6bd121bdc2ba5906e412da19191a2eaf2025755")
+            .parts()
+            .expect("Could not extract parts");
+        assert_eq!(parts.prefix, Path::new("refs/dit"));
+        assert_eq!(parts.issue, "65b56706fdc3501749d008750c61a1f24b888f72");
+        assert_eq!(
+            parts.kind,
+            Kind::Leaf(
+                "f6bd121bdc2ba5906e412da19191a2eaf2025755"
+                    .parse()
+                    .expect("Could not parse leaf OId")
+            )
+        );
+    }
+
+    #[test]
+    fn ref_parts_invalid_head_1() {
+        assert_eq!(
+            TestRef::from("refs/dit/65b56706fdc3501749d008750c61a1f24b888f72/head/foo").parts(),
+            None,
+        );
+    }
+
+    #[test]
+    fn ref_parts_invalid_head_2() {
+        assert_eq!(TestRef::from("refs/dit/foo/head").parts(), None);
+    }
+
+    #[test]
+    fn ref_parts_invalid_leaf_1() {
+        assert_eq!(TestRef::from("refs/dit/65b56706fdc3501749d008750c61a1f24b888f72/foo/f6bd121bdc2ba5906e412da19191a2eaf2025755").parts(), None);
+    }
+
+    #[test]
+    fn ref_parts_invalid_leaf_2() {
+        assert_eq!(
+            TestRef::from("refs/dit/65b56706fdc3501749d008750c61a1f24b888f72/leaves/foo").parts(),
+            None,
+        );
+    }
+
+    #[test]
+    fn ref_parts_invalid_leaf_3() {
+        assert_eq!(
+            TestRef::from("refs/dit/foo/leaves/f6bd121bdc2ba5906e412da19191a2eaf2025755").parts(),
+            None,
+        );
     }
 }
