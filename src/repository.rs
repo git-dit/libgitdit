@@ -15,7 +15,7 @@
 
 use std::collections::HashSet;
 
-use git2::{self, Commit, Oid, Tree};
+use git2::{self, Commit, Tree};
 
 use crate::base::Base;
 use crate::error;
