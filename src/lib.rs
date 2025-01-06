@@ -45,6 +45,7 @@ pub mod gc;
 pub mod issue;
 pub mod iter;
 pub mod message;
+pub mod reference;
 pub mod remote;
 pub mod repository;
 pub mod trailer;
