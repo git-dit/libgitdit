@@ -10,11 +10,20 @@ use std::error::Error;
 use std::path::Path;
 
 use crate::base::Base;
+use crate::error::InnerError;
 
 /// Some entity that stores [Reference]s
-pub trait Store<'r>: for<'a> Base<Reference<'a>: Reference> {}
+pub trait Store<'r>: Base {
+    /// Type used for representing references
+    type Reference<'a>: Reference<
+        Oid = Self::Oid,
+        Name: ToOwned<Owned = <<Self as Base>::InnerError as InnerError>::RefName>,
+    >;
+}
 
-impl Store<'_> for git2::Repository {}
+impl<'r> Store<'r> for git2::Repository {
+    type Reference<'a> = git2::Reference<'r>;
+}
 
 /// A git reference
 pub trait Reference {
