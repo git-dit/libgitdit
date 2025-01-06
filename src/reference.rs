@@ -10,7 +10,7 @@ use std::error::Error;
 use std::path::Path;
 
 use crate::base::Base;
-use crate::error::InnerError;
+use crate::error::{self, InnerError};
 
 /// Some entity that stores [Reference]s
 pub trait Store<'r>: Base {
@@ -18,6 +18,7 @@ pub trait Store<'r>: Base {
     type Reference: Reference<
         Oid = Self::Oid,
         Name: ToOwned<Owned = <<Self as Base>::InnerError as InnerError>::RefName>,
+        Error: Into<error::Inner<Self::InnerError>>,
     >;
 }
 
