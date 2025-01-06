@@ -56,4 +56,10 @@ pub(crate) mod tests {
             Ok(TestOid(res))
         }
     }
+
+    impl PartialEq<&str> for TestOid {
+        fn eq(&self, other: &&str) -> bool {
+            other.parse().map(|i: Self| self == &i).unwrap_or(false)
+        }
+    }
 }
