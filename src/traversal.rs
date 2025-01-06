@@ -106,7 +106,7 @@ pub trait TraversalBuilder: Sized {
     fn build(self) -> Result<Self::Iter, Self::BuildError>;
 }
 
-impl<'r> TraversalBuilder for git2::Revwalk<'r> {
+impl TraversalBuilder for git2::Revwalk<'_> {
     type Oid = git2::Oid;
 
     type Iter = Self;
