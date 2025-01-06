@@ -9,6 +9,13 @@
 use std::error::Error;
 use std::path::Path;
 
+use crate::base::Base;
+
+/// Some entity that stores [Reference]s
+pub trait Store<'r>: for<'a> Base<Reference<'a>: Reference> {}
+
+impl Store<'_> for git2::Repository {}
+
 /// A git reference
 pub trait Reference {
     /// Type for reference names
