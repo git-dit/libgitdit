@@ -53,3 +53,52 @@ impl<'r> Reference<'r> for git2::Reference<'_> {
         self.target()
     }
 }
+
+#[cfg(test)]
+pub(crate) mod tests {
+    use super::*;
+
+    use crate::base::tests::TestOid;
+
+    #[derive(Clone, Debug)]
+    pub struct TestRef {
+        name: std::path::PathBuf,
+        target: Option<TestOid>,
+    }
+
+    impl TestRef {
+        pub fn with_target(self, target: TestOid) -> Self {
+            Self {
+                target: Some(target),
+                ..self
+            }
+        }
+    }
+
+    impl From<&str> for TestRef {
+        fn from(path: &str) -> Self {
+            Self {
+                name: path.into(),
+                target: None,
+            }
+        }
+    }
+
+    impl<'r> Reference<'r> for TestRef {
+        type Name = Cow<'r, str>;
+        type Path = std::path::PathBuf;
+        type Oid = TestOid;
+
+        fn name(&'r self) -> Self::Name {
+            self.name.to_string_lossy()
+        }
+
+        fn as_path(&'r self) -> Self::Path {
+            self.name.clone()
+        }
+
+        fn target(&'r self) -> Option<Self::Oid> {
+            self.target
+        }
+    }
+}
