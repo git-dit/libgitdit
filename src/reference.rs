@@ -54,6 +54,12 @@ impl<'r> Reference<'r> for git2::Reference<'_> {
     }
 }
 
+/// Identifier/file name for the head reference of an issue
+pub(crate) const HEAD_COMPONENT: &str = "head";
+
+/// Identifier for leaf namespace in an issue
+pub(crate) const LEAF_COMPONENT: &str = "leaves";
+
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
