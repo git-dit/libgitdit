@@ -18,7 +18,7 @@ pub trait Reference<'r> {
     type Path: AsRef<Path>;
 
     /// Type used for representing Object IDs
-    type Oid;
+    type Oid: std::str::FromStr;
 
     /// Retrieve the name of the reference
     fn name(&'r self) -> Self::Name;
