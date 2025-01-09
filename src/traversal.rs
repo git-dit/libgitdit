@@ -106,7 +106,7 @@ pub trait TraversalBuilder: Sized {
     fn build(self) -> Result<Self::Iter, Self::BuildError>;
 }
 
-impl<'r> TraversalBuilder for git2::Revwalk<'r> {
+impl TraversalBuilder for git2::Revwalk<'_> {
     type Oid = git2::Oid;
 
     type Iter = Self;
@@ -121,8 +121,7 @@ impl<'r> TraversalBuilder for git2::Revwalk<'r> {
     ) -> Result<Self, Self::BuildError> {
         heads
             .into_iter()
-            .map(|oid| self.push(oid.into()))
-            .collect::<Result<(), Self::Error>>()?;
+            .try_for_each(|oid| self.push(oid.into()))?;
         Ok(self)
     }
 
@@ -130,9 +129,7 @@ impl<'r> TraversalBuilder for git2::Revwalk<'r> {
         mut self,
         ends: impl IntoIterator<Item = impl Into<Self::Oid>>,
     ) -> Result<Self, Self::BuildError> {
-        ends.into_iter()
-            .map(|oid| self.hide(oid.into()))
-            .collect::<Result<(), Self::Error>>()?;
+        ends.into_iter().try_for_each(|oid| self.hide(oid.into()))?;
         Ok(self)
     }
 
