@@ -15,9 +15,11 @@
 
 use std::collections::HashSet;
 
-use git2::{self, Commit, Oid, Tree};
+use git2::{self, Commit, Tree};
 
 use crate::base::Base;
+use crate::error;
+use crate::reference;
 use crate::traversal::Traversible;
 use gc;
 use issue::Issue;
@@ -116,22 +118,14 @@ impl<'r> RepositoryExt<'r> for git2::Repository {
         &'r self,
         head_ref: &Self::Reference<'_>,
     ) -> Result<Issue<'r>, Self::InnerError> {
-        let name = head_ref.name();
-        name.and_then(|name| if name.ends_with("/head") {
-                Some(name)
-            } else {
-                None
-            })
-            .and_then(|name| name.rsplitn(3, "/").nth(1))
-            .ok_or_else(|| {
-                let n = name.unwrap_or_default().to_owned();
-                EK::MalFormedHeadReference(n).into()
-            })
-            .and_then(|hash| {
-               Oid::from_str(hash)
-                   .wrap_with(|| EK::OidFormatError(hash.to_string()))
-            })
-            .and_then(|id| Issue::new(self, id))
+        use reference::Reference;
+
+        let id = head_ref
+            .parts()
+            .filter(|p| p.kind == reference::Kind::Head)
+            .ok_or_else(|| error::Kind::MalFormedHeadReference(Reference::name(head_ref).into()))?
+            .issue;
+        Issue::new(self, id)
     }
 
     fn issues_with_prefix(&'r self, prefix: &str) -> Result<UniqueIssues<'r>, Self::InnerError> {

@@ -36,6 +36,7 @@
 
 #[macro_use] extern crate lazy_static;
 extern crate git2;
+extern crate poppable_path;
 extern crate regex;
 
 pub mod base;
@@ -44,6 +45,7 @@ pub mod gc;
 pub mod issue;
 pub mod iter;
 pub mod message;
+pub mod reference;
 pub mod remote;
 pub mod repository;
 pub mod trailer;
