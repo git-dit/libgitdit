@@ -14,6 +14,31 @@ use git2::Remote;
 
 use issue::Issue;
 
+/// Name of a remote git repository
+pub trait Name {
+    /// Reference prefix for this repository
+    ///
+    /// This fn will return the reference prefix of this remote in the form of a
+    /// path, like `refs/remotes/<remote-name>`. Its default implementation
+    /// returns [None] if [as_str](Self::as_str) would return [None].
+    fn ref_path(&self) -> Option<std::path::PathBuf> {
+        let mut path = std::path::Path::new(REMOTES_REF_BASE).to_path_buf();
+        path.push(self.as_str()?);
+        Some(path)
+    }
+
+    /// Represenation of this name as a `&str`
+    ///
+    /// If this name can be represented as a `&str` without loss of information,
+    /// this fn will return that representation.
+    fn as_str(&self) -> Option<&str>;
+}
+
+impl Name for Option<&str> {
+    fn as_str(&self) -> Option<&str> {
+        *self
+    }
+}
 
 /// Extension trait for remotes
 ///
@@ -43,3 +68,4 @@ impl<'r> RemoteExt for Remote<'r> {
     }
 }
 
+const REMOTES_REF_BASE: &str = "refs/remotes/";
