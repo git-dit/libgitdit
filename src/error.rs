@@ -93,7 +93,7 @@ pub enum Kind<I: InnerError> {
     CannotDeleteReference(I::RefName),
     CannotBuildTree,
     CannotFindIssueHead(I::Oid),
-    CannotSetReference(I::RefName),
+    CannotSetReference(String),
     NoTreeInitFound(I::Oid),
     OidFormatError(String),
     MalFormedHeadReference(I::RefName),
