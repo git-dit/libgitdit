@@ -10,7 +10,7 @@ use std::error::Error;
 use std::path::Path;
 
 use crate::base::Base;
-use crate::error::{self, InnerError};
+use crate::error::{self, InnerError, ResultExt};
 
 /// Some entity that stores [Reference]s
 pub trait Store<'r>: Base {
@@ -20,10 +20,61 @@ pub trait Store<'r>: Base {
         Name: ToOwned<Owned = <<Self as Base>::InnerError as InnerError>::RefName>,
         Error: Into<error::Inner<Self::InnerError>>,
     >;
+
+    /// Type for a basic [Iterator] of [Reference]s
+    type References: IntoIterator<Item = Result<Self::Reference, Self::InnerError>>;
+
+    /// Retrieve a specific reference
+    fn get_reference(
+        &'r self,
+        path: &Path,
+    ) -> error::Result<Option<Self::Reference>, Self::InnerError>;
+
+    /// Retrieve a subset of all [Reference]s in this store
+    fn references(&'r self, prefix: &Path) -> error::Result<Self::References, Self::InnerError>;
+
+    /// Update or create a new [Reference]
+    fn set_reference(
+        &'r self,
+        name: &Path,
+        target: Self::Oid,
+        overwrite: bool,
+        reflog_msg: &str,
+    ) -> error::Result<Self::Reference, Self::InnerError>;
 }
 
 impl<'r> Store<'r> for git2::Repository {
     type Reference = git2::Reference<'r>;
+    type References = git2::References<'r>;
+
+    fn get_reference(
+        &'r self,
+        path: &Path,
+    ) -> error::Result<Option<Self::Reference>, Self::InnerError> {
+        let name = path.to_str().ok_or(error::Kind::CannotGetReference)?;
+        match self.find_reference(name).map(Some) {
+            Err(err) if err.code() == git2::ErrorCode::NotFound => Ok(None),
+            err => err.wrap_with_kind(error::Kind::CannotGetReference),
+        }
+    }
+
+    fn references(&'r self, prefix: &Path) -> error::Result<Self::References, Self::InnerError> {
+        let glob = format!("{}/**", prefix.display());
+        self.references_glob(glob.as_ref())
+            .wrap_with_kind(error::Kind::CannotGetReferences(glob))
+    }
+
+    fn set_reference(
+        &'r self,
+        name: &Path,
+        target: Self::Oid,
+        overwrite: bool,
+        reflog_msg: &str,
+    ) -> error::Result<Self::Reference, Self::InnerError> {
+        let path = name.to_str().ok_or(error::Kind::ReferenceNameError)?;
+        self.reference(path, target, overwrite, reflog_msg)
+            .wrap_with(|| error::Kind::CannotSetReference(path.to_owned()))
+    }
 }
 
 /// A git reference
