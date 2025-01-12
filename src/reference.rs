@@ -11,6 +11,7 @@ use std::path::Path;
 
 use crate::base::Base;
 use crate::error::{self, InnerError, ResultExt};
+use crate::remote;
 
 /// Some entity that stores [Reference]s
 pub trait Store<'r>: Base {
@@ -23,6 +24,9 @@ pub trait Store<'r>: Base {
 
     /// Type for a basic [Iterator] of [Reference]s
     type References: IntoIterator<Item = Result<Self::Reference, Self::InnerError>>;
+
+    /// Container for remote references' names
+    type RemoteNames: remote::Names;
 
     /// Retrieve a specific reference
     fn get_reference(
@@ -41,11 +45,15 @@ pub trait Store<'r>: Base {
         overwrite: bool,
         reflog_msg: &str,
     ) -> error::Result<Self::Reference, Self::InnerError>;
+
+    /// Retrieve all git remote references' names
+    fn remote_names(&self) -> error::Result<Self::RemoteNames, Self::InnerError>;
 }
 
 impl<'r> Store<'r> for git2::Repository {
     type Reference = git2::Reference<'r>;
     type References = git2::References<'r>;
+    type RemoteNames = git2::string_array::StringArray;
 
     fn get_reference(
         &'r self,
@@ -74,6 +82,10 @@ impl<'r> Store<'r> for git2::Repository {
         let path = name.to_str().ok_or(error::Kind::ReferenceNameError)?;
         self.reference(path, target, overwrite, reflog_msg)
             .wrap_with(|| error::Kind::CannotSetReference(path.to_owned()))
+    }
+
+    fn remote_names(&self) -> error::Result<Self::RemoteNames, Self::InnerError> {
+        self.remotes().wrap_with_kind(error::Kind::CannotGetRemotes)
     }
 }
 
