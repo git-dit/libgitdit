@@ -86,6 +86,24 @@ impl<'r, R: Base> Issue<'r, R> {
 }
 
 impl<'r, R: reference::Store<'r>> Issue<'r, R> {
+    /// Get the local issue head for the issue
+    ///
+    /// Returns the head reference of the issue from the local repository, if
+    /// present.
+    pub fn local_head(&self) -> error::Result<Option<R::Reference>, R::InnerError> {
+        let path = format!("refs/{DIT_REF_PART}/{}/{HEAD_COMPONENT}", self.id());
+        self.repo().get_reference(path.as_ref())
+    }
+
+    /// Get local references for the issue
+    ///
+    /// Returns all references of a specific type associated with the issue from
+    /// the local repository.
+    pub fn local_refs(&self) -> error::Result<R::References, R::InnerError> {
+        let path = format!("refs/{DIT_REF_PART}/{}", self.id());
+        self.repo().references(path.as_ref())
+    }
+
     /// Update the local head reference of the issue
     ///
     /// Updates the local head reference of the issue to the provided message.
@@ -162,30 +180,6 @@ impl<'r> Issue<'r, git2::Repository> {
         self.repo
             .references_glob(&glob)
             .wrap_with(|| EK::CannotFindIssueHead(*self.id()))
-    }
-
-    /// Get the local issue head for the issue
-    ///
-    /// Returns the head reference of the issue from the local repository, if
-    /// present.
-    ///
-    pub fn local_head(&self) -> Result<Reference<'r>, git2::Error> {
-        let refname = format!("refs/dit/{}/head", self.id());
-        self.repo
-            .find_reference(&refname)
-            .wrap_with(|| EK::CannotFindIssueHead(*self.id()))
-    }
-
-    /// Get local references for the issue
-    ///
-    /// Return all references of a specific type associated with the issue from
-    /// the local repository.
-    ///
-    pub fn local_refs(&self, ref_type: IssueRefType) -> Result<References<'r>, git2::Error> {
-        let glob = format!("refs/dit/{}/{}", self.id(), ref_type.glob_part());
-        self.repo
-            .references_glob(&glob)
-            .wrap_with_kind(EK::CannotGetReferences(glob))
     }
 
     /// Get remote references for the issue
@@ -285,6 +279,8 @@ mod tests {
 
     #[test]
     fn issue_leaves() {
+        use reference::{Reference, References};
+
         let mut testing_repo = TestingRepo::new("issue_leaves");
         let repo = testing_repo.repo();
 
@@ -315,8 +311,9 @@ mod tests {
             .expect("Could not add message");
 
         let mut leaves = issue
-            .local_refs(IssueRefType::Leaf)
-            .expect("Could not retrieve issue leaves");
+            .local_refs()
+            .expect("Could not retrieve issue leaves")
+            .leaves();
         let leaf = leaves
             .next()
             .expect("Could not find leaf reference")
@@ -361,7 +358,7 @@ mod tests {
         let mut ids = vec![issue.id().clone(), message.id()];
         ids.sort();
         let mut ref_ids: Vec<Oid> = issue
-            .local_refs(IssueRefType::Any)
+            .local_refs()
             .expect("Could not retrieve local refs")
             .map(|reference| reference.unwrap().target().unwrap())
             .collect();
@@ -446,6 +443,7 @@ mod tests {
         let mut local_head = issue
             .local_head()
             .expect("Could not retrieve local head")
+            .expect("No local head found")
             .target()
             .expect("Could not get target of local head");
         assert_eq!(&local_head, issue.id());
@@ -456,6 +454,7 @@ mod tests {
         local_head = issue
             .local_head()
             .expect("Could not retrieve local head")
+            .expect("No local head found")
             .target()
             .expect("Could not get target of local head");
         assert_eq!(local_head, message.id());

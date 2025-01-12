@@ -99,6 +99,8 @@ impl<'r> CollectableRefs<'r>
         &self,
         issue: &Issue<'r, git2::Repository>,
     ) -> Result<RefsReferringTo<'r>, git2::Error> {
+        use reference::References;
+
         let mut retval = {
             let messages = self
                 .repo
@@ -108,7 +110,7 @@ impl<'r> CollectableRefs<'r>
         };
 
         // local head
-        if let Some(local_head) = issue.local_head().ok() {
+        if let Some(local_head) = issue.local_head()? {
             // Its ok to ignore failures to retrieve the local head. It will
             // not be present in user's repositories anyway.
             retval.push(
@@ -148,7 +150,7 @@ impl<'r> CollectableRefs<'r>
         }
 
         // local leaves
-        for item in issue.local_refs(IssueRefType::Leaf)? {
+        for item in issue.local_refs()?.leaves() {
             let leaf = item.wrap_with_kind(error::Kind::CannotGetReference)?;
             // NOTE: We push the parents of the references rather than the
             //       references themselves since that would cause the
