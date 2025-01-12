@@ -231,16 +231,6 @@ impl<'r> Issue<'r> {
             .reference(&refname, message, false, &reflogmsg)
             .wrap_with_kind(EK::CannotSetReference(refname))
     }
-
-    /// Get reference part for this issue
-    ///
-    /// The references associated with an issue reside in paths specific to the
-    /// issue. This function returns the part unique for the issue, e.g. the
-    /// part after the  `dit/`.
-    ///
-    pub fn ref_part(&self) -> String {
-        self.id().to_string()
-    }
 }
 
 impl<'r> fmt::Display for Issue<'r> {
