@@ -7,6 +7,7 @@
 //! Base type and trait definitions
 
 use std::fmt;
+use std::hash::Hash;
 
 use crate::error;
 
@@ -15,7 +16,7 @@ use crate::error;
 /// This trait defines some base types of underlying git implementations.
 pub trait Base {
     /// Type used for representing Object IDs
-    type Oid: Clone + fmt::Debug + fmt::Display;
+    type Oid: Clone + fmt::Debug + fmt::Display + Eq + Hash;
 
     /// Type used for representing references
     type Reference<'a>;
