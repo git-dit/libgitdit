@@ -256,8 +256,8 @@ impl<R: Base> hash::Hash for Issue<'_, R> {
     }
 }
 
-
-
+/// Reference part for the dit namespace
+pub(crate) const DIT_REF_PART: &str = "dit";
 
 #[cfg(test)]
 mod tests {
