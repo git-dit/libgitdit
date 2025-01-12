@@ -64,6 +64,14 @@ pub struct Issue<'r, R: Base> {
 }
 
 impl<'r, R: Base> Issue<'r, R> {
+    /// Create a new handle for an issue with a given id
+    ///
+    /// This fn creates a new issue handle, without checking whether the issue
+    /// itself exists.
+    pub(crate) fn new_unchecked(repo: &'r R, id: R::Oid) -> Self {
+        Self { repo, id }
+    }
+
     /// Get the issue's id
     pub fn id(&self) -> R::Oid {
         self.id.clone()
