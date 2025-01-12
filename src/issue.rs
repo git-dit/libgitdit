@@ -17,6 +17,7 @@ use std::fmt;
 use std::hash;
 use std::result::Result as RResult;
 
+use crate::base::Base;
 use crate::error;
 use crate::traversal::{TraversalBuilder, Traversible};
 use error::*;
@@ -57,23 +58,23 @@ impl fmt::Debug for IssueRefType {
 ///
 /// Instances of this type represent single issues. Issues reside in
 /// repositories and are uniquely identified by an id.
-///
-pub struct Issue<'r> {
-    repo: &'r git2::Repository,
-    id: git2::Oid,
+pub struct Issue<'r, R: Base> {
+    repo: &'r R,
+    id: R::Oid,
 }
 
-impl<'r> Issue<'r> {
+impl<'r, R: Base> Issue<'r, R> {
+    /// Get the issue's id
+    pub fn id(&self) -> R::Oid {
+        self.id.clone()
+    }
+}
+
+impl<'r> Issue<'r, git2::Repository> {
     /// Create a new handle for an issue with a given id
     ///
     pub fn new(repo: &'r git2::Repository, id: Oid) -> Result<Self, git2::Error> {
         Ok(Issue { repo, id })
-    }
-
-    /// Get the issue's id
-    ///
-    pub fn id(&self) -> Oid {
-        self.id
     }
 
     /// Get the issue's initial message
@@ -231,21 +232,21 @@ impl<'r> Issue<'r> {
     }
 }
 
-impl<'r> fmt::Display for Issue<'r> {
+impl<R: Base> fmt::Display for Issue<'_, R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> RResult<(), fmt::Error> {
         write!(f, "{}", self.id())
     }
 }
 
-impl<'r> PartialEq for Issue<'r> {
+impl<R: Base> PartialEq for Issue<'_, R> {
     fn eq(&self, other: &Self) -> bool {
         self.id() == other.id()
     }
 }
 
-impl<'r> Eq for Issue<'r> {}
+impl<R: Base> Eq for Issue<'_, R> {}
 
-impl<'r> hash::Hash for Issue<'r> {
+impl<R: Base> hash::Hash for Issue<'_, R> {
     fn hash<H>(&self, state: &mut H)
         where H: hash::Hasher
     {
