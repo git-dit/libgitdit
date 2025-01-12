@@ -13,7 +13,7 @@
 //!
 
 use git2::{self, Commit, Oid, Reference, References};
-use std::fmt;
+use std::fmt::{self, Write};
 use std::hash;
 use std::result::Result as RResult;
 
@@ -21,6 +21,7 @@ use crate::base::Base;
 use crate::error;
 use crate::object::Database;
 use crate::reference::{self, HEAD_COMPONENT};
+use crate::remote;
 use crate::traversal::{TraversalBuilder, Traversible};
 use error::*;
 use error::Kind as EK;
@@ -101,6 +102,36 @@ impl<'r, R: reference::Store<'r>> Issue<'r, R> {
     /// the local repository.
     pub fn local_refs(&self) -> error::Result<R::References, R::InnerError> {
         let path = format!("refs/{DIT_REF_PART}/{}", self.id());
+        self.repo().references(path.as_ref())
+    }
+
+    /// Get the issue head for this issue for a specific remote
+    ///
+    /// Returns the head reference of the issue for a specific remote
+    /// repository.
+    pub fn remote_head(
+        &self,
+        remote: &impl remote::Name,
+    ) -> error::Result<Option<R::Reference>, R::InnerError> {
+        let make_err = || error::Kind::CannotFindIssueHead(self.id().clone());
+        let mut path = remote.ref_path().wrap_with(make_err)?;
+        write!(path, "/{DIT_REF_PART}/{}/{HEAD_COMPONENT}", self.id()).wrap_with(make_err)?;
+        self.repo().get_reference(path.as_ref())
+    }
+
+    /// Get referernces for this issue for a specific remote
+    ///
+    /// Return all references of a specific type associated with the issue from
+    /// a specific remote repository.
+    pub fn remote_refs(
+        &self,
+        remote: &impl remote::Name,
+    ) -> error::Result<R::References, R::InnerError> {
+        let mut path = remote
+            .ref_path()
+            .wrap_with_kind(error::Kind::CannotConstructRevwalk)?;
+        write!(path, "/{DIT_REF_PART}/{}", self.id())
+            .wrap_with_kind(error::Kind::CannotConstructRevwalk)?;
         self.repo().references(path.as_ref())
     }
 
