@@ -17,6 +17,7 @@ use std::fmt;
 use std::hash;
 use std::result::Result as RResult;
 
+use crate::error;
 use crate::traversal::{TraversalBuilder, Traversible};
 use error::*;
 use error::Kind as EK;
@@ -59,31 +60,28 @@ impl fmt::Debug for IssueRefType {
 ///
 pub struct Issue<'r> {
     repo: &'r git2::Repository,
-    obj: git2::Object<'r>,
+    id: git2::Oid,
 }
 
 impl<'r> Issue<'r> {
     /// Create a new handle for an issue with a given id
     ///
     pub fn new(repo: &'r git2::Repository, id: Oid) -> Result<Self, git2::Error> {
-        repo.find_object(id, Some(git2::ObjectType::Commit))
-            .wrap_with(|| EK::CannotGetCommitForRev(id.to_string()))
-            .map(|obj| Issue { repo: repo, obj: obj })
+        Ok(Issue { repo, id })
     }
 
     /// Get the issue's id
     ///
     pub fn id(&self) -> Oid {
-        self.obj.id()
+        self.id
     }
 
     /// Get the issue's initial message
     ///
     pub fn initial_message(&self) -> Result<git2::Commit<'r>, git2::Error> {
-        self.obj
-            .clone()
-            .into_commit()
-            .map_err(|obj| EK::CannotGetCommitForRev(obj.id().to_string()).into())
+        self.repo
+            .find_commit(self.id())
+            .wrap_with(|| error::Kind::CannotGetCommitForRev(self.id().to_string()))
     }
 
     /// Get possible heads of the issue
