@@ -92,7 +92,7 @@ impl<'r> Issue<'r> {
     /// for this issue.
     ///
     pub fn heads(&self) -> Result<References<'r>, git2::Error> {
-        let glob = format!("**/dit/{}/head", self.ref_part());
+        let glob = format!("**/dit/{}/head", self.id());
         self.repo
             .references_glob(&glob)
             .wrap_with(|| EK::CannotFindIssueHead(self.id()))
@@ -104,7 +104,7 @@ impl<'r> Issue<'r> {
     /// present.
     ///
     pub fn local_head(&self) -> Result<Reference<'r>, git2::Error> {
-        let refname = format!("refs/dit/{}/head", self.ref_part());
+        let refname = format!("refs/dit/{}/head", self.id());
         self.repo
             .find_reference(&refname)
             .wrap_with(|| EK::CannotFindIssueHead(self.id()))
@@ -116,7 +116,7 @@ impl<'r> Issue<'r> {
     /// the local repository.
     ///
     pub fn local_refs(&self, ref_type: IssueRefType) -> Result<References<'r>, git2::Error> {
-        let glob = format!("refs/dit/{}/{}", self.ref_part(), ref_type.glob_part());
+        let glob = format!("refs/dit/{}/{}", self.id(), ref_type.glob_part());
         self.repo
             .references_glob(&glob)
             .wrap_with_kind(EK::CannotGetReferences(glob))
@@ -128,7 +128,7 @@ impl<'r> Issue<'r> {
     /// all remote repositories.
     ///
     pub fn remote_refs(&self, ref_type: IssueRefType) -> Result<References<'r>, git2::Error> {
-        let glob = format!("refs/remotes/*/dit/{}/{}", self.ref_part(), ref_type.glob_part());
+        let glob = format!("refs/remotes/*/dit/{}/{}", self.id(), ref_type.glob_part());
         self.repo
             .references_glob(&glob)
             .wrap_with_kind(EK::CannotGetReferences(glob))
@@ -140,7 +140,7 @@ impl<'r> Issue<'r> {
     /// both the local and remote repositories.
     ///
     pub fn all_refs(&self, ref_type: IssueRefType) -> Result<References<'r>, git2::Error> {
-        let glob = format!("**/dit/{}/{}", self.ref_part(), ref_type.glob_part());
+        let glob = format!("**/dit/{}/{}", self.id(), ref_type.glob_part());
         self.repo
             .references_glob(&glob)
             .wrap_with_kind(EK::CannotGetReferences(glob))
@@ -213,7 +213,7 @@ impl<'r> Issue<'r> {
     /// fast-forward update.
     ///
     pub fn update_head(&self, message: Oid, replace: bool) -> Result<Reference<'r>, git2::Error> {
-        let refname = format!("refs/dit/{}/head", self.ref_part());
+        let refname = format!("refs/dit/{}/head", self.id());
         let reflogmsg = format!("git-dit: set head reference of {} to {}", self, message);
         self.repo
             .reference(&refname, message, replace, &reflogmsg)
@@ -225,7 +225,7 @@ impl<'r> Issue<'r> {
     /// Creates a new leaf reference for the message provided in the issue.
     ///
     pub fn add_leaf(&self, message: Oid) -> Result<Reference<'r>, git2::Error> {
-        let refname = format!("refs/dit/{}/leaves/{}", self.ref_part(), message);
+        let refname = format!("refs/dit/{}/leaves/{}", self.id(), message);
         let reflogmsg = format!("git-dit: new leaf for {}: {}", self, message);
         self.repo
             .reference(&refname, message, false, &reflogmsg)
