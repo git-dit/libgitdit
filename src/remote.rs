@@ -14,6 +14,25 @@ use git2::Remote;
 
 use issue::Issue;
 
+/// Container for remote names
+pub trait Names {
+    /// An [Iterator] over remote names
+    type NameIter<'n>: Iterator<Item: Name>
+    where
+        Self: 'n;
+
+    /// Get an [Iterator] over all remotes' names
+    fn names(&self) -> Self::NameIter<'_>;
+}
+
+impl Names for git2::string_array::StringArray {
+    type NameIter<'n> = git2::string_array::Iter<'n>;
+
+    fn names(&self) -> Self::NameIter<'_> {
+        self.iter()
+    }
+}
+
 /// Name of a remote git repository
 pub trait Name {
     /// Reference prefix for this repository
