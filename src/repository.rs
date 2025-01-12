@@ -105,7 +105,7 @@ pub trait RepositoryExt<'r>: Base + Sized {
 
 impl<'r> RepositoryExt<'r> for git2::Repository {
     fn find_issue(&'r self, id: Self::Oid) -> Result<Issue<'r, Self>, Self::InnerError> {
-        let retval = Issue::new(self, id)?;
+        let retval = Issue::new_unchecked(self, id);
 
         // make sure the id refers to an issue by checking whether an associated
         // head reference exists
@@ -122,12 +122,13 @@ impl<'r> RepositoryExt<'r> for git2::Repository {
     ) -> Result<Issue<'r, Self>, Self::InnerError> {
         use reference::Reference;
 
-        let id = head_ref
+        head_ref
             .parts()
             .filter(|p| p.kind == reference::Kind::Head)
-            .ok_or_else(|| error::Kind::MalFormedHeadReference(Reference::name(head_ref).into()))?
-            .issue;
-        Issue::new(self, id)
+            .map(|p| Issue::new_unchecked(self, p.issue))
+            .ok_or_else(|| {
+                error::Kind::MalFormedHeadReference(Reference::name(head_ref).into()).into()
+            })
     }
 
     fn issues_with_prefix(
@@ -166,8 +167,8 @@ impl<'r> RepositoryExt<'r> for git2::Repository {
 
         self.commit(None, author, committer, message.as_ref(), tree, &parent_vec)
             .wrap_with_kind(EK::CannotCreateMessage)
-            .and_then(|id| Issue::new(self, id))
-            .and_then(|issue| {
+            .and_then(|id| {
+                let issue = Issue::new_unchecked(self, id);
                 issue.update_head(issue.id(), true)?;
                 Ok(issue)
             })
