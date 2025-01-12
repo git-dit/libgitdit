@@ -79,12 +79,6 @@ impl<'r, R: Base> Issue<'r, R> {
 }
 
 impl<'r> Issue<'r, git2::Repository> {
-    /// Create a new handle for an issue with a given id
-    ///
-    pub fn new(repo: &'r git2::Repository, id: Oid) -> Result<Self, git2::Error> {
-        Ok(Issue { repo, id })
-    }
-
     /// Get the issue's initial message
     ///
     pub fn initial_message(&self) -> Result<git2::Commit<'r>, git2::Error> {
