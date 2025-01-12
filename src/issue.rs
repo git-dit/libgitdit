@@ -17,6 +17,8 @@ use std::fmt;
 use std::hash;
 use std::result::Result as RResult;
 
+use crate::base::Base;
+use crate::error;
 use crate::traversal::{TraversalBuilder, Traversible};
 use error::*;
 use error::Kind as EK;
@@ -56,34 +58,33 @@ impl fmt::Debug for IssueRefType {
 ///
 /// Instances of this type represent single issues. Issues reside in
 /// repositories and are uniquely identified by an id.
-///
-pub struct Issue<'r> {
-    repo: &'r git2::Repository,
-    obj: git2::Object<'r>,
+pub struct Issue<'r, R: Base> {
+    repo: &'r R,
+    id: R::Oid,
 }
 
-impl<'r> Issue<'r> {
+impl<'r, R: Base> Issue<'r, R> {
     /// Create a new handle for an issue with a given id
     ///
-    pub fn new(repo: &'r git2::Repository, id: Oid) -> Result<Self, git2::Error> {
-        repo.find_object(id, Some(git2::ObjectType::Commit))
-            .wrap_with(|| EK::CannotGetCommitForRev(id.to_string()))
-            .map(|obj| Issue { repo: repo, obj: obj })
+    /// This fn creates a new issue handle, without checking whether the issue
+    /// itself exists.
+    pub(crate) fn new_unchecked(repo: &'r R, id: R::Oid) -> Self {
+        Self { repo, id }
     }
 
     /// Get the issue's id
-    ///
-    pub fn id(&self) -> Oid {
-        self.obj.id()
+    pub fn id(&self) -> R::Oid {
+        self.id.clone()
     }
+}
 
+impl<'r> Issue<'r, git2::Repository> {
     /// Get the issue's initial message
     ///
     pub fn initial_message(&self) -> Result<git2::Commit<'r>, git2::Error> {
-        self.obj
-            .clone()
-            .into_commit()
-            .map_err(|obj| EK::CannotGetCommitForRev(obj.id().to_string()).into())
+        self.repo
+            .find_commit(self.id())
+            .wrap_with(|| error::Kind::CannotGetCommitForRev(self.id().to_string()))
     }
 
     /// Get possible heads of the issue
@@ -92,7 +93,7 @@ impl<'r> Issue<'r> {
     /// for this issue.
     ///
     pub fn heads(&self) -> Result<References<'r>, git2::Error> {
-        let glob = format!("**/dit/{}/head", self.ref_part());
+        let glob = format!("**/dit/{}/head", self.id());
         self.repo
             .references_glob(&glob)
             .wrap_with(|| EK::CannotFindIssueHead(self.id()))
@@ -104,7 +105,7 @@ impl<'r> Issue<'r> {
     /// present.
     ///
     pub fn local_head(&self) -> Result<Reference<'r>, git2::Error> {
-        let refname = format!("refs/dit/{}/head", self.ref_part());
+        let refname = format!("refs/dit/{}/head", self.id());
         self.repo
             .find_reference(&refname)
             .wrap_with(|| EK::CannotFindIssueHead(self.id()))
@@ -116,7 +117,7 @@ impl<'r> Issue<'r> {
     /// the local repository.
     ///
     pub fn local_refs(&self, ref_type: IssueRefType) -> Result<References<'r>, git2::Error> {
-        let glob = format!("refs/dit/{}/{}", self.ref_part(), ref_type.glob_part());
+        let glob = format!("refs/dit/{}/{}", self.id(), ref_type.glob_part());
         self.repo
             .references_glob(&glob)
             .wrap_with_kind(EK::CannotGetReferences(glob))
@@ -128,7 +129,7 @@ impl<'r> Issue<'r> {
     /// all remote repositories.
     ///
     pub fn remote_refs(&self, ref_type: IssueRefType) -> Result<References<'r>, git2::Error> {
-        let glob = format!("refs/remotes/*/dit/{}/{}", self.ref_part(), ref_type.glob_part());
+        let glob = format!("refs/remotes/*/dit/{}/{}", self.id(), ref_type.glob_part());
         self.repo
             .references_glob(&glob)
             .wrap_with_kind(EK::CannotGetReferences(glob))
@@ -140,7 +141,7 @@ impl<'r> Issue<'r> {
     /// both the local and remote repositories.
     ///
     pub fn all_refs(&self, ref_type: IssueRefType) -> Result<References<'r>, git2::Error> {
-        let glob = format!("**/dit/{}/{}", self.ref_part(), ref_type.glob_part());
+        let glob = format!("**/dit/{}/{}", self.id(), ref_type.glob_part());
         self.repo
             .references_glob(&glob)
             .wrap_with_kind(EK::CannotGetReferences(glob))
@@ -213,7 +214,7 @@ impl<'r> Issue<'r> {
     /// fast-forward update.
     ///
     pub fn update_head(&self, message: Oid, replace: bool) -> Result<Reference<'r>, git2::Error> {
-        let refname = format!("refs/dit/{}/head", self.ref_part());
+        let refname = format!("refs/dit/{}/head", self.id());
         let reflogmsg = format!("git-dit: set head reference of {} to {}", self, message);
         self.repo
             .reference(&refname, message, replace, &reflogmsg)
@@ -225,39 +226,29 @@ impl<'r> Issue<'r> {
     /// Creates a new leaf reference for the message provided in the issue.
     ///
     pub fn add_leaf(&self, message: Oid) -> Result<Reference<'r>, git2::Error> {
-        let refname = format!("refs/dit/{}/leaves/{}", self.ref_part(), message);
+        let refname = format!("refs/dit/{}/leaves/{}", self.id(), message);
         let reflogmsg = format!("git-dit: new leaf for {}: {}", self, message);
         self.repo
             .reference(&refname, message, false, &reflogmsg)
             .wrap_with_kind(EK::CannotSetReference(refname))
     }
-
-    /// Get reference part for this issue
-    ///
-    /// The references associated with an issue reside in paths specific to the
-    /// issue. This function returns the part unique for the issue, e.g. the
-    /// part after the  `dit/`.
-    ///
-    pub fn ref_part(&self) -> String {
-        self.id().to_string()
-    }
 }
 
-impl<'r> fmt::Display for Issue<'r> {
+impl<R: Base> fmt::Display for Issue<'_, R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> RResult<(), fmt::Error> {
         write!(f, "{}", self.id())
     }
 }
 
-impl<'r> PartialEq for Issue<'r> {
+impl<R: Base> PartialEq for Issue<'_, R> {
     fn eq(&self, other: &Self) -> bool {
         self.id() == other.id()
     }
 }
 
-impl<'r> Eq for Issue<'r> {}
+impl<R: Base> Eq for Issue<'_, R> {}
 
-impl<'r> hash::Hash for Issue<'r> {
+impl<R: Base> hash::Hash for Issue<'_, R> {
     fn hash<H>(&self, state: &mut H)
         where H: hash::Hasher
     {

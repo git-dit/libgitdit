@@ -31,8 +31,7 @@ use error::{Kind as EK};
 
 
 /// Set of unique issues
-///
-pub type UniqueIssues<'a> = HashSet<Issue<'a>>;
+pub type UniqueIssues<'r, R> = HashSet<Issue<'r, R>>;
 
 
 /// Extension trait for Repositories
@@ -40,11 +39,11 @@ pub type UniqueIssues<'a> = HashSet<Issue<'a>>;
 /// This trait is intended as an extension for repositories. It introduces
 /// utility functions for dealing with issues, e.g. for retrieving references
 /// for issues, creating messages and finding the initial message of an issue.
-pub trait RepositoryExt<'r>: Base {
+pub trait RepositoryExt<'r>: Base + Sized {
     /// Retrieve an issue
     ///
     /// Returns the issue with a given id.
-    fn find_issue(&'r self, id: Self::Oid) -> Result<Issue<'r>, Self::InnerError>;
+    fn find_issue(&'r self, id: Self::Oid) -> Result<Issue<'r, Self>, Self::InnerError>;
 
     /// Retrieve an issue by its head ref
     ///
@@ -52,12 +51,12 @@ pub trait RepositoryExt<'r>: Base {
     fn issue_by_head_ref(
         &'r self,
         head_ref: &Self::Reference<'_>,
-    ) -> Result<Issue<'r>, Self::InnerError>;
+    ) -> Result<Issue<'r, Self>, Self::InnerError>;
 
     /// Find the issue with a given message in it
     ///
     /// Returns the issue containing the message provided
-    fn issue_with_message(&'r self, message: Self::Oid) -> Result<Issue<'r>, Self::InnerError>
+    fn issue_with_message(&'r self, message: Self::Oid) -> Result<Issue<'r, Self>, Self::InnerError>
     where
         Self: Traversible<'r>,
     {
@@ -76,12 +75,15 @@ pub trait RepositoryExt<'r>: Base {
     /// This function returns all known issues known to the DIT repo under the
     /// prefix provided (e.g. all issues for which refs exist under
     /// `<prefix>/dit/`). Provide "refs" as the prefix to get only local issues.
-    fn issues_with_prefix(&'r self, prefix: &str) -> Result<UniqueIssues<'r>, Self::InnerError>;
+    fn issues_with_prefix(
+        &'r self,
+        prefix: &str,
+    ) -> Result<UniqueIssues<'r, Self>, Self::InnerError>;
 
     /// Get all issue hashes
     ///
     /// This function returns all known issues known to the DIT repo.
-    fn issues(&'r self) -> Result<UniqueIssues<'r>, Self::InnerError>;
+    fn issues(&'r self) -> Result<UniqueIssues<'r, Self>, Self::InnerError>;
 
     /// Create a new issue with an initial message
     fn create_issue<'a, A, I, J>(
@@ -91,7 +93,7 @@ pub trait RepositoryExt<'r>: Base {
         message: A,
         tree: &Tree,
         parents: I,
-    ) -> Result<Issue<'r>, Self::InnerError>
+    ) -> Result<Issue<'r, Self>, Self::InnerError>
     where
         A: AsRef<str>,
         I: IntoIterator<Item = &'a Commit<'a>, IntoIter = J>,
@@ -102,8 +104,8 @@ pub trait RepositoryExt<'r>: Base {
 }
 
 impl<'r> RepositoryExt<'r> for git2::Repository {
-    fn find_issue(&'r self, id: Self::Oid) -> Result<Issue<'r>, Self::InnerError> {
-        let retval = Issue::new(self, id)?;
+    fn find_issue(&'r self, id: Self::Oid) -> Result<Issue<'r, Self>, Self::InnerError> {
+        let retval = Issue::new_unchecked(self, id);
 
         // make sure the id refers to an issue by checking whether an associated
         // head reference exists
@@ -117,18 +119,22 @@ impl<'r> RepositoryExt<'r> for git2::Repository {
     fn issue_by_head_ref(
         &'r self,
         head_ref: &Self::Reference<'_>,
-    ) -> Result<Issue<'r>, Self::InnerError> {
+    ) -> Result<Issue<'r, Self>, Self::InnerError> {
         use reference::Reference;
 
-        let id = head_ref
+        head_ref
             .parts()
             .filter(|p| p.kind == reference::Kind::Head)
-            .ok_or_else(|| error::Kind::MalFormedHeadReference(Reference::name(head_ref).into()))?
-            .issue;
-        Issue::new(self, id)
+            .map(|p| Issue::new_unchecked(self, p.issue))
+            .ok_or_else(|| {
+                error::Kind::MalFormedHeadReference(Reference::name(head_ref).into()).into()
+            })
     }
 
-    fn issues_with_prefix(&'r self, prefix: &str) -> Result<UniqueIssues<'r>, Self::InnerError> {
+    fn issues_with_prefix(
+        &'r self,
+        prefix: &str,
+    ) -> Result<UniqueIssues<'r, Self>, Self::InnerError> {
         let glob = format!("{}/dit/**/head", prefix);
         self.references_glob(&glob)
             .wrap_with_kind(EK::CannotGetReferences(glob))
@@ -136,7 +142,7 @@ impl<'r> RepositoryExt<'r> for git2::Repository {
             .collect_result()
     }
 
-    fn issues(&'r self) -> Result<UniqueIssues<'r>, Self::InnerError> {
+    fn issues(&'r self) -> Result<UniqueIssues<'r, Self>, Self::InnerError> {
         let glob = "**/dit/**/head";
         self.references_glob(glob)
             .wrap_with(|| EK::CannotGetReferences(glob.to_owned()))
@@ -151,7 +157,7 @@ impl<'r> RepositoryExt<'r> for git2::Repository {
         message: A,
         tree: &Tree,
         parents: I,
-    ) -> Result<Issue<'r>, Self::InnerError>
+    ) -> Result<Issue<'r, Self>, Self::InnerError>
     where
         A: AsRef<str>,
         I: IntoIterator<Item = &'a Commit<'a>, IntoIter = J>,
@@ -161,8 +167,8 @@ impl<'r> RepositoryExt<'r> for git2::Repository {
 
         self.commit(None, author, committer, message.as_ref(), tree, &parent_vec)
             .wrap_with_kind(EK::CannotCreateMessage)
-            .and_then(|id| Issue::new(self, id))
-            .and_then(|issue| {
+            .and_then(|id| {
+                let issue = Issue::new_unchecked(self, id);
                 issue.update_head(issue.id(), true)?;
                 Ok(issue)
             })

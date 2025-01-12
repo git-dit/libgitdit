@@ -12,6 +12,7 @@
 
 use git2::Remote;
 
+use crate::base::Base;
 use issue::Issue;
 
 /// Container for remote names
@@ -65,8 +66,7 @@ pub trait RemoteExt {
     /// Get the refspec for a specific issue for this remote
     ///
     /// A refspec will only be returned if the remote has a (valid) name.
-    ///
-    fn issue_refspec(&self, issue: Issue) -> Option<String>;
+    fn issue_refspec(&self, issue: Issue<'_, impl Base>) -> Option<String>;
 
     /// Get the refspec for all issue for this remote
     ///
@@ -76,9 +76,9 @@ pub trait RemoteExt {
 }
 
 impl<'r> RemoteExt for Remote<'r> {
-    fn issue_refspec(&self, issue: Issue) -> Option<String> {
+    fn issue_refspec(&self, issue: Issue<'_, impl Base>) -> Option<String> {
         self.name()
-            .map(|name| format!("+refs/dit/{1}/*:refs/remotes/{0}/dit/{1}/*", name, issue.ref_part()))
+            .map(|n| format!("+refs/dit/{0}/*:refs/remotes/{n}/dit/{0}/*", issue.id()))
     }
 
     fn all_issues_refspec(&self) -> Option<String> {

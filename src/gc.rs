@@ -94,8 +94,10 @@ impl<'r> CollectableRefs<'r>
     ///
     /// Construct an iterator yielding all collectable references for a given
     /// issue, according to the configuration.
-    ///
-    pub fn for_issue(&self, issue: &Issue<'r>) -> Result<RefsReferringTo<'r>, git2::Error> {
+    pub fn for_issue(
+        &self,
+        issue: &Issue<'r, git2::Repository>,
+    ) -> Result<RefsReferringTo<'r>, git2::Error> {
         let mut retval = {
             let messages = self
                 .repo

@@ -42,9 +42,8 @@ impl<'r> HeadRefsToIssuesIter<'r>
     }
 }
 
-impl<'r> Iterator for HeadRefsToIssuesIter<'r>
-{
-    type Item = Result<issue::Issue<'r>, git2::Error>;
+impl<'r> Iterator for HeadRefsToIssuesIter<'r> {
+    type Item = Result<issue::Issue<'r, git2::Repository>, git2::Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.inner
