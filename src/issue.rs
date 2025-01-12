@@ -186,8 +186,7 @@ impl<'r> Issue<'r, git2::Repository> {
     ///
     /// Return all references of a specific type associated with the issue from
     /// all remote repositories.
-    ///
-    pub fn remote_refs(&self, ref_type: IssueRefType) -> Result<References<'r>, git2::Error> {
+    pub fn all_remote_refs(&self, ref_type: IssueRefType) -> Result<References<'r>, git2::Error> {
         let glob = format!("refs/remotes/*/dit/{}/{}", self.id(), ref_type.glob_part());
         self.repo
             .references_glob(&glob)

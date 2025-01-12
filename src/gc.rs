@@ -132,7 +132,7 @@ impl<'r> CollectableRefs<'r>
             match self.collect_heads {
                 ReferenceCollectionSpec::Never => {},
                 ReferenceCollectionSpec::BackedByRemoteHead => {
-                    for item in issue.remote_refs(IssueRefType::Head)? {
+                    for item in issue.all_remote_refs(IssueRefType::Head)? {
                         let id = item
                             .wrap_with_kind(error::Kind::CannotGetReference)?
                             .peel(git2::ObjectType::Commit)
@@ -161,7 +161,7 @@ impl<'r> CollectableRefs<'r>
 
         // remote refs
         if self.consider_remote_refs {
-            for item in issue.remote_refs(IssueRefType::Any)? {
+            for item in issue.all_remote_refs(IssueRefType::Any)? {
                 let id = item
                     .wrap_with_kind(error::Kind::CannotGetReference)?
                     .peel(git2::ObjectType::Commit)
