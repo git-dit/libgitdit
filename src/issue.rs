@@ -20,6 +20,7 @@ use std::result::Result as RResult;
 use crate::base::Base;
 use crate::error;
 use crate::object::Database;
+use crate::reference::{self, HEAD_COMPONENT};
 use crate::traversal::{TraversalBuilder, Traversible};
 use error::*;
 use error::Kind as EK;
@@ -81,6 +82,37 @@ impl<'r, R: Base> Issue<'r, R> {
     /// Get the repository the issue lifes in
     pub(crate) fn repo(&self) -> &'r R {
         self.repo
+    }
+}
+
+impl<'r, R: reference::Store<'r>> Issue<'r, R> {
+    /// Update the local head reference of the issue
+    ///
+    /// Updates the local head reference of the issue to the provided message.
+    pub fn update_head(
+        &self,
+        message: R::Oid,
+        replace: bool,
+    ) -> error::Result<R::Reference, R::InnerError> {
+        let path = format!("refs/{DIT_REF_PART}/{}/{HEAD_COMPONENT}", self.id());
+        let reflogmsg = format!("git-dit: set head reference of {self} to {message}");
+        self.repo()
+            .set_reference(path.as_ref(), message, replace, &reflogmsg)
+    }
+
+    /// Add a new leaf reference associated with the issue
+    ///
+    /// Creates a new leaf reference for the message provided in the issue.
+    pub fn add_leaf(&self, message: R::Oid) -> error::Result<R::Reference, R::InnerError> {
+        use reference::LEAF_COMPONENT;
+
+        let path = format!(
+            "refs/{DIT_REF_PART}/{}/{LEAF_COMPONENT}/{message}",
+            self.id(),
+        );
+        let reflogmsg = format!("git-dit: new leaf for {self}: {message}");
+        self.repo()
+            .set_reference(path.as_ref(), message, false, &reflogmsg)
     }
 }
 
@@ -216,35 +248,6 @@ impl<'r> Issue<'r, git2::Repository> {
             .and_then(|id| self.repo.find_commit(id))
             .wrap_with_kind(EK::CannotCreateMessage)
             .and_then(|message| self.add_leaf(message.id()).map(|_| message))
-    }
-
-    /// Update the local head reference of the issue
-    ///
-    /// Updates the local head reference of the issue to the provided message.
-    ///
-    /// # Warnings
-    ///
-    /// The function will update the reference even if it would not be an
-    /// fast-forward update.
-    ///
-    pub fn update_head(&self, message: Oid, replace: bool) -> Result<Reference<'r>, git2::Error> {
-        let refname = format!("refs/dit/{}/head", self.id());
-        let reflogmsg = format!("git-dit: set head reference of {} to {}", self, message);
-        self.repo
-            .reference(&refname, message, replace, &reflogmsg)
-            .wrap_with_kind(EK::CannotSetReference(refname))
-    }
-
-    /// Add a new leaf reference associated with the issue
-    ///
-    /// Creates a new leaf reference for the message provided in the issue.
-    ///
-    pub fn add_leaf(&self, message: Oid) -> Result<Reference<'r>, git2::Error> {
-        let refname = format!("refs/dit/{}/leaves/{}", self.id(), message);
-        let reflogmsg = format!("git-dit: new leaf for {}: {}", self, message);
-        self.repo
-            .reference(&refname, message, false, &reflogmsg)
-            .wrap_with_kind(EK::CannotSetReference(refname))
     }
 }
 
