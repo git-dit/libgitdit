@@ -41,10 +41,8 @@ pub trait Name {
     /// This fn will return the reference prefix of this remote in the form of a
     /// path, like `refs/remotes/<remote-name>`. Its default implementation
     /// returns [None] if [as_str](Self::as_str) would return [None].
-    fn ref_path(&self) -> Option<std::path::PathBuf> {
-        let mut path = std::path::Path::new(REMOTES_REF_BASE).to_path_buf();
-        path.push(self.as_str()?);
-        Some(path)
+    fn ref_path(&self) -> Option<String> {
+        self.as_str().map(|s| format!("{REMOTES_REF_BASE}/{s}"))
     }
 
     /// Represenation of this name as a `&str`
