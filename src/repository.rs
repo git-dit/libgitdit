@@ -126,8 +126,9 @@ impl<'r> RepositoryExt<'r> for git2::Repository {
             .parts()
             .filter(|p| p.kind == reference::Kind::Head)
             .map(|p| Issue::new_unchecked(self, p.issue))
-            .ok_or_else(|| {
-                error::Kind::MalFormedHeadReference(Reference::name(head_ref).into()).into()
+            .ok_or_else(|| match Reference::name(head_ref) {
+                Ok(s) => error::Kind::MalFormedHeadReference(s.into()).into(),
+                Err(e) => e.into(),
             })
     }
 

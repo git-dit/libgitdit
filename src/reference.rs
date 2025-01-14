@@ -7,6 +7,7 @@
 //! References and reference related utilities
 
 use std::borrow::Cow;
+use std::error::Error;
 use std::path::Path;
 
 use poppable_path::Poppable;
@@ -22,15 +23,18 @@ pub trait Reference<'r> {
     /// Type used for representing Object IDs
     type Oid: std::str::FromStr;
 
+    /// [Error] type used for communicating name and path retrieval errors
+    type Error: Error;
+
     /// Retrieve the name of the reference
-    fn name(&'r self) -> Self::Name;
+    fn name(&'r self) -> Result<Self::Name, Self::Error>;
 
     /// Retrieve the [Path] representation of this reference
-    fn as_path(&'r self) -> Self::Path;
+    fn as_path(&'r self) -> Result<Self::Path, Self::Error>;
 
     /// Extract the defining parts of this reference regarding the issue
     fn parts(&'r self) -> Option<Parts<Self::Path, Self::Oid>> {
-        let mut path = self.as_path();
+        let mut path = self.as_path().ok()?;
 
         let kind = if path.as_ref().ends_with(HEAD_COMPONENT) {
             Kind::Head
@@ -59,19 +63,17 @@ pub trait Reference<'r> {
 }
 
 impl<'r> Reference<'r> for git2::Reference<'_> {
-    type Name = Cow<'r, str>;
-    type Path = Cow<'r, Path>;
+    type Name = &'r str;
+    type Path = &'r Path;
     type Oid = git2::Oid;
+    type Error = std::str::Utf8Error;
 
-    fn name(&'r self) -> Self::Name {
-        String::from_utf8_lossy(self.name_bytes())
+    fn name(&'r self) -> Result<Self::Name, Self::Error> {
+        std::str::from_utf8(self.name_bytes())
     }
 
-    fn as_path(&'r self) -> Self::Path {
-        match Reference::name(self) {
-            Cow::Borrowed(p) => Cow::Borrowed(Path::new(p)),
-            Cow::Owned(p) => Cow::Owned(p.into()),
-        }
+    fn as_path(&'r self) -> Result<Self::Path, Self::Error> {
+        Reference::name(self).map(Path::new)
     }
 
     fn target(&'r self) -> Option<Self::Oid> {
@@ -110,6 +112,7 @@ pub(crate) mod tests {
     use super::*;
 
     use crate::base::tests::TestOid;
+    use crate::error::tests::TestError;
 
     #[derive(Clone, Debug)]
     pub struct TestRef {
@@ -136,16 +139,17 @@ pub(crate) mod tests {
     }
 
     impl<'r> Reference<'r> for TestRef {
-        type Name = Cow<'r, str>;
+        type Name = &'r str;
         type Path = std::path::PathBuf;
         type Oid = TestOid;
+        type Error = TestError;
 
-        fn name(&'r self) -> Self::Name {
-            self.name.to_string_lossy()
+        fn name(&'r self) -> Result<Self::Name, Self::Error> {
+            self.name.to_str().ok_or(TestError)
         }
 
-        fn as_path(&'r self) -> Self::Path {
-            self.name.clone()
+        fn as_path(&'r self) -> Result<Self::Path, Self::Error> {
+            Ok(self.name.clone())
         }
 
         fn target(&'r self) -> Option<Self::Oid> {

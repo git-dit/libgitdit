@@ -213,7 +213,10 @@ pub(crate) mod tests {
         fn ref_name(reference: &Self::Reference<'_>) -> Self::RefName {
             use crate::reference::Reference;
 
-            reference.name().to_string()
+            reference
+                .name()
+                .map(ToString::to_string)
+                .unwrap_or_default()
         }
     }
 
