@@ -25,6 +25,11 @@ pub trait Names {
 
     /// Get an [Iterator] over all remotes' names
     fn names(&self) -> Self::NameIter<'_>;
+
+    /// Get an [Iterator] over all remotes' ref paths
+    fn ref_paths(&self) -> impl Iterator<Item = Result<String, Utf8Error>> {
+        self.names().map(|n| n.ref_path())
+    }
 }
 
 impl Names for git2::string_array::StringArray {
@@ -114,5 +119,14 @@ mod tests {
             b"foo".as_slice().ref_path(),
             Ok("refs/remotes/foo".to_owned()),
         );
+    }
+
+    #[test]
+    fn names_ref_paths() {
+        let paths = vec!["foo".to_owned(), "bar".to_owned()]
+            .ref_paths()
+            .collect::<Result<Vec<_>, _>>()
+            .expect("Could not retrieve paths");
+        assert_eq!(paths, ["refs/remotes/foo", "refs/remotes/bar"]);
     }
 }
