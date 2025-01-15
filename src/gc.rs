@@ -15,7 +15,7 @@
 use git2::{self, Reference};
 
 use crate::error;
-use issue::{Issue, IssueRefType};
+use crate::issue::Issue;
 use iter::{self, RefsReferringTo};
 use utils::ResultIterExt;
 

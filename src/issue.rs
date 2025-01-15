@@ -23,37 +23,6 @@ use crate::reference::{self, HEAD_COMPONENT};
 use crate::remote;
 use crate::traversal::{TraversalBuilder, Traversible};
 
-
-#[derive(PartialEq)]
-pub enum IssueRefType {
-    Any,
-    Head,
-    Leaf,
-}
-
-impl IssueRefType {
-    /// Get the part of a glob specific to the type
-    ///
-    pub fn glob_part(&self) -> &'static str {
-        match *self {
-            IssueRefType::Any   => "**",
-            IssueRefType::Head  => "head",
-            IssueRefType::Leaf  => "leaves/*",
-        }
-    }
-}
-
-impl fmt::Debug for IssueRefType {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        f.write_str(match self {
-            &IssueRefType::Any   => "Any ref",
-            &IssueRefType::Head  => "Head ref",
-            &IssueRefType::Leaf  => "Leaf ref",
-        })
-    }
-}
-
-
 /// Issue handle
 ///
 /// Instances of this type represent single issues. Issues reside in
