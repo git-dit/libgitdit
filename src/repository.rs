@@ -110,7 +110,7 @@ impl<'r> RepositoryExt<'r> for git2::Repository {
 
         // make sure the id refers to an issue by checking whether an associated
         // head reference exists
-        if retval.heads()?.next().is_some() {
+        if retval.all_heads()?.next().is_some() {
             Ok(retval)
         } else {
             Err(EK::CannotFindIssueHead(id).into())

@@ -179,6 +179,39 @@ impl<'r, R: reference::Store<'r>> Issue<'r, R> {
         Ok(ref_bases.into_iter().flatten())
     }
 
+    /// Get possible heads of the issue
+    ///
+    /// Returns the head references from both the local repository and remotes
+    /// for this issue.
+    pub fn all_heads(
+        &self,
+    ) -> error::Result<
+        impl Iterator<Item = error::Result<R::Reference, R::InnerError>> + '_,
+        R::InnerError,
+    > {
+        let refs = self
+            .local_head()
+            .transpose()
+            .into_iter()
+            .chain(self.all_remote_heads()?);
+        Ok(refs)
+    }
+
+    /// Get references for the issue
+    ///
+    /// Return all references of a specific type associated with the issue from
+    /// both the local and remote repositories.
+    pub fn all_refs(
+        &self,
+    ) -> error::Result<impl Iterator<Item = RResult<R::Reference, R::InnerError>>, R::InnerError>
+    {
+        let refs = self
+            .local_refs()?
+            .into_iter()
+            .chain(self.all_remote_refs()?);
+        Ok(refs)
+    }
+
     /// Update the local head reference of the issue
     ///
     /// Updates the local head reference of the issue to the provided message.
@@ -245,33 +278,9 @@ impl<'r, R: Database<'r> + Traversible<'r>> Issue<'r, R> {
 }
 
 impl<'r> Issue<'r, git2::Repository> {
-    /// Get possible heads of the issue
-    ///
-    /// Returns the head references from both the local repository and remotes
-    /// for this issue.
-    ///
-    pub fn heads(&self) -> Result<References<'r>, git2::Error> {
-        let glob = format!("**/dit/{}/head", self.id());
-        self.repo
-            .references_glob(&glob)
-            .wrap_with(|| EK::CannotFindIssueHead(*self.id()))
-    }
-
-    /// Get references for the issue
-    ///
-    /// Return all references of a specific type associated with the issue from
-    /// both the local and remote repositories.
-    ///
-    pub fn all_refs(&self, ref_type: IssueRefType) -> Result<References<'r>, git2::Error> {
-        let glob = format!("**/dit/{}/{}", self.id(), ref_type.glob_part());
-        self.repo
-            .references_glob(&glob)
-            .wrap_with_kind(EK::CannotGetReferences(glob))
-    }
-
     /// Get all messages of the issue
     pub fn messages(&self) -> Result<git2::Revwalk<'r>, git2::Error> {
-        self.all_refs(IssueRefType::Any)?
+        self.all_refs()?
             .map(|m| m?.peel(git2::ObjectType::Commit))
             .map(|m| m.wrap_with_kind(EK::CannotGetReference))
             .try_fold(self.terminated_messages()?, |b, m| {
