@@ -198,3 +198,30 @@ impl InnerError for git2::Error {
     }
 }
 
+#[cfg(test)]
+pub(crate) mod tests {
+    use super::*;
+
+    #[derive(Copy, Clone, Debug)]
+    pub struct TestError;
+
+    impl InnerError for TestError {
+        type Oid = crate::base::tests::TestOid;
+        type RefName = String;
+        type Reference<'r> = crate::reference::tests::TestRef;
+
+        fn ref_name(reference: &Self::Reference<'_>) -> Self::RefName {
+            use crate::reference::Reference;
+
+            reference.name().to_string()
+        }
+    }
+
+    impl std::error::Error for TestError {}
+
+    impl fmt::Display for TestError {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            fmt::Display::fmt("TEST ERROR", f)
+        }
+    }
+}
