@@ -42,7 +42,21 @@ pub trait RepositoryExt<'r>: reference::Store<'r> + Sized {
     /// Retrieve an issue
     ///
     /// Returns the issue with a given id.
-    fn find_issue(&'r self, id: Self::Oid) -> Result<Issue<'r, Self>, Self::InnerError>;
+    fn find_issue(&'r self, id: Self::Oid) -> error::Result<Issue<'r, Self>, Self::InnerError> {
+        let retval = Issue::new_unchecked(self, id.clone());
+
+        // We need to make sure the id refers to an issue by checking whether an
+        // associated head reference exists. And we do not want to pessimise the
+        // case where we have a local reference.
+        if retval.local_head()?.is_none() {
+            retval
+                .all_remote_heads()?
+                .next()
+                .ok_or(error::Kind::CannotFindIssueHead(id))??;
+        }
+
+        Ok(retval)
+    }
 
     /// Retrieve an issue by its head ref
     ///
@@ -102,18 +116,6 @@ pub trait RepositoryExt<'r>: reference::Store<'r> + Sized {
 }
 
 impl<'r> RepositoryExt<'r> for git2::Repository {
-    fn find_issue(&'r self, id: Self::Oid) -> Result<Issue<'r, Self>, Self::InnerError> {
-        let retval = Issue::new_unchecked(self, id);
-
-        // make sure the id refers to an issue by checking whether an associated
-        // head reference exists
-        if retval.all_heads()?.next().is_some() {
-            Ok(retval)
-        } else {
-            Err(EK::CannotFindIssueHead(id).into())
-        }
-    }
-
     fn issue_by_head_ref(
         &'r self,
         head_ref: &Self::Reference,
