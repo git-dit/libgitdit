@@ -135,6 +135,26 @@ impl<'r, R: reference::Store<'r>> Issue<'r, R> {
         self.repo().references(path.as_ref())
     }
 
+    /// Get remote heads for the issue
+    pub fn all_remote_heads(
+        &self,
+    ) -> error::Result<
+        impl Iterator<Item = error::Result<R::Reference, R::InnerError>> + '_,
+        R::InnerError,
+    > {
+        let refs = self
+            .repo()
+            .remote_ref_paths()?
+            .into_iter()
+            .map(move |mut p| {
+                write!(p, "/{DIT_REF_PART}/{}/{HEAD_COMPONENT}", self.id())
+                    .wrap_with(|| error::Kind::CannotFindIssueHead(self.id().clone()))?;
+                self.repo().get_reference(p.as_ref())
+            })
+            .filter_map(Result::transpose);
+        Ok(refs)
+    }
+
     /// Update the local head reference of the issue
     ///
     /// Updates the local head reference of the issue to the provided message.
