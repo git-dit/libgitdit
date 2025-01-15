@@ -155,6 +155,30 @@ impl<'r, R: reference::Store<'r>> Issue<'r, R> {
         Ok(refs)
     }
 
+    /// Get remote references for the issue
+    ///
+    /// Return all references of a specific type associated with the issue from
+    /// all remote repositories.
+    pub fn all_remote_refs(
+        &self,
+    ) -> error::Result<impl Iterator<Item = RResult<R::Reference, R::InnerError>>, R::InnerError>
+    {
+        use remote::Names;
+
+        let ref_bases: Vec<_> = self
+            .repo()
+            .remote_names()?
+            .ref_paths()
+            .map(|p| {
+                let mut path = p.wrap_with_kind(error::Kind::CannotConstructRevwalk)?;
+                write!(path, "/{DIT_REF_PART}/{}", self.id())
+                    .wrap_with_kind(error::Kind::CannotConstructRevwalk)?;
+                self.repo().references(path.as_ref())
+            })
+            .collect::<Result<_, _>>()?;
+        Ok(ref_bases.into_iter().flatten())
+    }
+
     /// Update the local head reference of the issue
     ///
     /// Updates the local head reference of the issue to the provided message.
@@ -231,17 +255,6 @@ impl<'r> Issue<'r, git2::Repository> {
         self.repo
             .references_glob(&glob)
             .wrap_with(|| EK::CannotFindIssueHead(*self.id()))
-    }
-
-    /// Get remote references for the issue
-    ///
-    /// Return all references of a specific type associated with the issue from
-    /// all remote repositories.
-    pub fn all_remote_refs(&self, ref_type: IssueRefType) -> Result<References<'r>, git2::Error> {
-        let glob = format!("refs/remotes/*/dit/{}/{}", self.id(), ref_type.glob_part());
-        self.repo
-            .references_glob(&glob)
-            .wrap_with_kind(EK::CannotGetReferences(glob))
     }
 
     /// Get references for the issue
