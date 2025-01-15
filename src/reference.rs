@@ -48,6 +48,16 @@ pub trait Store<'r>: Base {
 
     /// Retrieve all git remote references' names
     fn remote_names(&self) -> error::Result<Self::RemoteNames, Self::InnerError>;
+
+    /// Retrieve all git remote references' ref paths
+    fn remote_ref_paths(&self) -> error::Result<Vec<String>, Self::InnerError> {
+        use remote::Names;
+
+        self.remote_names()?
+            .ref_paths()
+            .map(|n| n.wrap_with_kind(error::Kind::ReferenceNameError))
+            .collect()
+    }
 }
 
 impl<'r> Store<'r> for git2::Repository {
