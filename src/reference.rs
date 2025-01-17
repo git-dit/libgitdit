@@ -6,7 +6,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 //! References and reference related utilities
 
-use std::borrow::Cow;
 use std::error::Error;
 use std::path::Path;
 
