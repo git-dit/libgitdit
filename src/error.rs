@@ -85,11 +85,18 @@ impl<I: InnerError> From<Utf8Error> for Error<I> {
     }
 }
 
+impl<I: InnerError> From<fmt::Error> for Error<I> {
+    fn from(err: fmt::Error) -> Self {
+        Inner::Format(err).into()
+    }
+}
+
 impl<I: InnerError + 'static> std::error::Error for Error<I> {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         self.inner.as_ref().map(|x| match x {
             Inner::Error(i) => i as &(dyn std::error::Error + 'static),
             Inner::Utf8(i) => i as &(dyn std::error::Error + 'static),
+            Inner::Format(i) => i as &(dyn std::error::Error + 'static),
         })
     }
 }
@@ -104,6 +111,7 @@ impl<I: InnerError> fmt::Display for Error<I> {
 enum Inner<I> {
     Error(I),
     Utf8(Utf8Error),
+    Format(fmt::Error),
 }
 
 /// Kinds of errors which may be emitted by this library
