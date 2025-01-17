@@ -52,6 +52,11 @@ impl<I: InnerError> Error<I> {
         }
     }
 
+    /// Transform into a new error with a different [Kind]
+    pub fn with_kind(self, kind: Kind<I>) -> Self {
+        Self { kind, ..self }
+    }
+
     /// Retrieve the [Kind] of error
     pub fn kind(&self) -> &Kind<I> {
         &self.kind
