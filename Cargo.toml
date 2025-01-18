@@ -8,6 +8,5 @@ license = "MPL-2.0"
 
 [dependencies]
 git2 = "0.17"
-poppable-path = "0.1"
 regex = "1"
 lazy_static = "1"
