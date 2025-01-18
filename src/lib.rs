@@ -44,7 +44,6 @@ pub mod error;
 pub mod gc;
 pub mod issue;
 pub mod iter;
-pub mod message;
 pub mod reference;
 pub mod remote;
 pub mod repository;
@@ -59,7 +58,6 @@ mod test_utils;
 // A selection of types are reexported for more convenient access.
 pub use error::Error;
 pub use issue::Issue;
-pub use message::Message;
 pub use remote::RemoteExt;
 pub use repository::RepositoryExt;
 
