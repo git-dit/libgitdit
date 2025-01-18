@@ -169,7 +169,7 @@ impl<'r> RepositoryExt<'r> for git2::Repository {
             .wrap_with_kind(EK::CannotCreateMessage)
             .and_then(|id| {
                 let issue = Issue::new_unchecked(self, id);
-                issue.update_head(issue.id(), true)?;
+                issue.update_head(*issue.id(), true)?;
                 Ok(issue)
             })
     }
@@ -200,7 +200,7 @@ mod tests {
             .create_issue(&sig, &sig, "Test message 1", &empty_tree(repo), vec![])
             .expect("Could not create issue");
 
-        repo.find_issue(issue.id())
+        repo.find_issue(issue.id().clone())
             .expect("Could not tretrieve issue by id");
     }
 
@@ -291,9 +291,19 @@ mod tests {
         let mut iter = repo
             .first_parent_messages(message.id())
             .expect("Could not create first parent iterator");
-        assert_eq!(iter.next().unwrap().unwrap(), message.id());
-        assert_eq!(iter.next().unwrap().unwrap(), issue.id());
-        assert!(iter.next().is_none());
+        let mut current_id = iter
+            .next()
+            .expect("No more messages")
+            .expect("Could not retrieve message");
+        assert_eq!(current_id, message.id());
+
+        current_id = iter
+            .next()
+            .expect("No more messages")
+            .expect("Could not retrieve message");
+        assert_eq!(&current_id, issue.id());
+
+        assert_eq!(iter.next(), None);
     }
 }
 

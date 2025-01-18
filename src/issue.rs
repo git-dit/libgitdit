@@ -73,8 +73,8 @@ impl<'r, R: Base> Issue<'r, R> {
     }
 
     /// Get the issue's id
-    pub fn id(&self) -> R::Oid {
-        self.id.clone()
+    pub fn id(&self) -> &R::Oid {
+        &self.id
     }
 }
 
@@ -83,7 +83,7 @@ impl<'r> Issue<'r, git2::Repository> {
     ///
     pub fn initial_message(&self) -> Result<git2::Commit<'r>, git2::Error> {
         self.repo
-            .find_commit(self.id())
+            .find_commit(*self.id())
             .wrap_with(|| error::Kind::CannotGetCommitForRev(self.id().to_string()))
     }
 
@@ -96,7 +96,7 @@ impl<'r> Issue<'r, git2::Repository> {
         let glob = format!("**/dit/{}/head", self.id());
         self.repo
             .references_glob(&glob)
-            .wrap_with(|| EK::CannotFindIssueHead(self.id()))
+            .wrap_with(|| EK::CannotFindIssueHead(*self.id()))
     }
 
     /// Get the local issue head for the issue
@@ -108,7 +108,7 @@ impl<'r> Issue<'r, git2::Repository> {
         let refname = format!("refs/dit/{}/head", self.id());
         self.repo
             .find_reference(&refname)
-            .wrap_with(|| EK::CannotFindIssueHead(self.id()))
+            .wrap_with(|| EK::CannotFindIssueHead(*self.id()))
     }
 
     /// Get local references for the issue
@@ -341,7 +341,7 @@ mod tests {
             .add_message(&sig, &sig, "Test message 3", &empty_tree, vec![&initial_message])
             .expect("Could not add message");
 
-        let mut ids = vec![issue.id(), message.id()];
+        let mut ids = vec![issue.id().clone(), message.id()];
         ids.sort();
         let mut ref_ids: Vec<Oid> = issue
             .local_refs(IssueRefType::Any)
@@ -382,15 +382,29 @@ mod tests {
         let mut iter1 = issue1
             .messages()
             .expect("Could not create message revwalk iterator");
-        assert_eq!(iter1.next().unwrap().unwrap(), issue1.id());
+        let mut current_id = iter1
+            .next()
+            .expect("No more messages")
+            .expect("Could not retrieve message");
+        assert_eq!(current_id, issue1.id().clone());
         assert!(iter1.next().is_none());
 
         let mut iter2 = issue2
             .messages()
             .expect("Could not create message revwalk iterator");
-        assert_eq!(iter2.next().unwrap().unwrap(), message_id);
-        assert_eq!(iter2.next().unwrap().unwrap(), issue2.id());
-        assert!(iter2.next().is_none());
+        current_id = iter2
+            .next()
+            .expect("No more messages")
+            .expect("Could not retrieve message");
+        assert_eq!(current_id, message_id);
+
+        current_id = iter2
+            .next()
+            .expect("No more messages")
+            .expect("Could not retrieve message");
+        assert_eq!(&current_id, issue2.id());
+
+        assert_eq!(iter2.next(), None);
     }
 
     #[test]
@@ -412,12 +426,22 @@ mod tests {
             .add_message(&sig, &sig, "Test message 3", &empty_tree, vec![&initial_message])
             .expect("Could not add message");
 
-        assert_eq!(issue.local_head().unwrap().target().unwrap(), issue.id());
+        let mut local_head = issue
+            .local_head()
+            .expect("Could not retrieve local head")
+            .target()
+            .expect("Could not get target of local head");
+        assert_eq!(&local_head, issue.id());
 
         issue
             .update_head(message.id(), true)
             .expect("Could not update head reference");
-        assert_eq!(issue.local_head().unwrap().target().unwrap(), message.id());
+        local_head = issue
+            .local_head()
+            .expect("Could not retrieve local head")
+            .target()
+            .expect("Could not get target of local head");
+        assert_eq!(local_head, message.id());
     }
 }
 
