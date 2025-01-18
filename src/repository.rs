@@ -64,7 +64,18 @@ pub trait RepositoryExt<'r>: reference::Store<'r> + Sized {
     fn issue_by_head_ref(
         &'r self,
         head_ref: &Self::Reference,
-    ) -> Result<Issue<'r, Self>, Self::InnerError>;
+    ) -> error::Result<Issue<'r, Self>, Self::InnerError> {
+        use reference::Reference;
+
+        head_ref
+            .parts()
+            .filter(|p| p.kind == reference::Kind::Head)
+            .map(|p| Issue::new_unchecked(self, p.issue))
+            .ok_or_else(|| match head_ref.name() {
+                Ok(s) => error::Kind::MalFormedHeadReference(s.to_owned()).into(),
+                Err(e) => error::Kind::CannotGetReference.wrap(e),
+            })
+    }
 
     /// Find the issue with a given message in it
     ///
@@ -116,22 +127,6 @@ pub trait RepositoryExt<'r>: reference::Store<'r> + Sized {
 }
 
 impl<'r> RepositoryExt<'r> for git2::Repository {
-    fn issue_by_head_ref(
-        &'r self,
-        head_ref: &Self::Reference,
-    ) -> Result<Issue<'r, Self>, Self::InnerError> {
-        use reference::Reference;
-
-        head_ref
-            .parts()
-            .filter(|p| p.kind == reference::Kind::Head)
-            .map(|p| Issue::new_unchecked(self, p.issue))
-            .ok_or_else(|| match Reference::name(head_ref) {
-                Ok(s) => error::Kind::MalFormedHeadReference(s.into()).into(),
-                Err(e) => error::Kind::CannotGetReference.wrap(e),
-            })
-    }
-
     fn issues_with_prefix(
         &'r self,
         prefix: &str,
