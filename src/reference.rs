@@ -58,7 +58,7 @@ pub trait Reference<'r> {
     ///
     /// This fn will return the target if this reference is direct. For indirect
     /// references, this fn will return [None].
-    fn target(&'r self) -> Option<Self::Oid>;
+    fn target(&self) -> Option<Self::Oid>;
 }
 
 impl<'r> Reference<'r> for git2::Reference<'_> {
@@ -75,7 +75,7 @@ impl<'r> Reference<'r> for git2::Reference<'_> {
         Reference::name(self).map(Path::new)
     }
 
-    fn target(&'r self) -> Option<Self::Oid> {
+    fn target(&self) -> Option<Self::Oid> {
         self.target()
     }
 }
@@ -151,7 +151,7 @@ pub(crate) mod tests {
             Ok(self.name.clone())
         }
 
-        fn target(&'r self) -> Option<Self::Oid> {
+        fn target(&self) -> Option<Self::Oid> {
             self.target
         }
     }
