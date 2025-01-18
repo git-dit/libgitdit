@@ -9,8 +9,6 @@
 use std::error::Error;
 use std::path::Path;
 
-use poppable_path::Poppable;
-
 /// A git reference
 pub trait Reference<'r> {
     /// Type for reference names
@@ -36,16 +34,16 @@ pub trait Reference<'r> {
             Kind::Head
         } else {
             let id = path.file_name()?.to_str()?.parse().ok()?;
-            path.pop().then_some(())?;
+            path = path.parent()?;
             path.ends_with(LEAF_COMPONENT).then_some(())?;
             Kind::Leaf(id)
         };
 
-        path.pop().then_some(())?;
+        path = path.parent()?;
 
         let issue = path.file_name()?.to_str()?.parse().ok()?;
-        path.pop().then_some(Parts {
-            prefix: path,
+        path.parent().map(|prefix| Parts {
+            prefix,
             issue,
             kind,
         })
