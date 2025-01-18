@@ -8,7 +8,7 @@
 //
 
 use std::fmt;
-
+use std::str::Utf8Error;
 
 /// Alias for wrapping git library specific [Error](std::error::Error)s
 pub type Result<T, I> = std::result::Result<T, Error<I>>;
@@ -39,14 +39,22 @@ impl<T, I: InnerError> ResultExt<T, I> for std::result::Result<T, I> {
 /// Custom [Error](std::error::Error) type for this library
 #[derive(Clone, Debug)]
 pub struct Error<I: InnerError> {
-    inner: Option<I>,
+    inner: Option<Inner<I>>,
     kind: Kind<I>,
 }
 
 impl<I: InnerError> Error<I> {
     /// Set an inner error
     pub fn with_inner(self, inner: I) -> Self {
-        Self {inner: Some(inner), ..self}
+        Self {
+            inner: Some(Inner::Error(inner)),
+            ..self
+        }
+    }
+
+    /// Transform into a new error with a different [Kind]
+    pub fn with_kind(self, kind: Kind<I>) -> Self {
+        Self { kind, ..self }
     }
 
     /// Retrieve the [Kind] of error
@@ -61,15 +69,40 @@ impl<I: InnerError> From<Kind<I>> for Error<I> {
     }
 }
 
+impl<I: InnerError> From<Inner<I>> for Error<I> {
+    fn from(inner: Inner<I>) -> Self {
+        Self {
+            inner: Some(inner),
+            kind: Kind::Other,
+        }
+    }
+}
+
 impl<I: InnerError> From<I> for Error<I> {
     fn from(inner: I) -> Self {
-        Self {inner: Some(inner), kind: Kind::Other}
+        Inner::Error(inner).into()
+    }
+}
+
+impl<I: InnerError> From<Utf8Error> for Error<I> {
+    fn from(err: Utf8Error) -> Self {
+        Inner::Utf8(err).into()
+    }
+}
+
+impl<I: InnerError> From<fmt::Error> for Error<I> {
+    fn from(err: fmt::Error) -> Self {
+        Inner::Format(err).into()
     }
 }
 
 impl<I: InnerError + 'static> std::error::Error for Error<I> {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        self.inner.as_ref().map(|x| x as &(dyn std::error::Error + 'static))
+        self.inner.as_ref().map(|x| match x {
+            Inner::Error(i) => i as &(dyn std::error::Error + 'static),
+            Inner::Utf8(i) => i as &(dyn std::error::Error + 'static),
+            Inner::Format(i) => i as &(dyn std::error::Error + 'static),
+        })
     }
 }
 
@@ -79,6 +112,12 @@ impl<I: InnerError> fmt::Display for Error<I> {
     }
 }
 
+#[derive(Clone, Debug)]
+enum Inner<I> {
+    Error(I),
+    Utf8(Utf8Error),
+    Format(fmt::Error),
+}
 
 /// Kinds of errors which may be emitted by this library
 #[derive(Clone, Debug)]
@@ -159,3 +198,33 @@ impl InnerError for git2::Error {
     }
 }
 
+#[cfg(test)]
+pub(crate) mod tests {
+    use super::*;
+
+    #[derive(Copy, Clone, Debug)]
+    pub struct TestError;
+
+    impl InnerError for TestError {
+        type Oid = crate::base::tests::TestOid;
+        type RefName = String;
+        type Reference<'r> = crate::reference::tests::TestRef;
+
+        fn ref_name(reference: &Self::Reference<'_>) -> Self::RefName {
+            use crate::reference::Reference;
+
+            reference
+                .name()
+                .map(ToString::to_string)
+                .unwrap_or_default()
+        }
+    }
+
+    impl std::error::Error for TestError {}
+
+    impl fmt::Display for TestError {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            fmt::Display::fmt("TEST ERROR", f)
+        }
+    }
+}

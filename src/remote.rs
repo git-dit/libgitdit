@@ -8,7 +8,8 @@
 //
 
 //! Module providing extension trait for remotes
-//!
+
+use std::str::Utf8Error;
 
 use git2::Remote;
 
@@ -27,10 +28,10 @@ pub trait Names {
 }
 
 impl Names for git2::string_array::StringArray {
-    type NameIter<'n> = git2::string_array::Iter<'n>;
+    type NameIter<'n> = git2::string_array::IterBytes<'n>;
 
     fn names(&self) -> Self::NameIter<'_> {
-        self.iter()
+        self.iter_bytes()
     }
 }
 
@@ -40,8 +41,8 @@ pub trait Name {
     ///
     /// This fn will return the reference prefix of this remote in the form of a
     /// path, like `refs/remotes/<remote-name>`. Its default implementation
-    /// returns [None] if [as_str](Self::as_str) would return [None].
-    fn ref_path(&self) -> Option<String> {
+    /// returns any error [as_str](Self::as_str) returns.
+    fn ref_path(&self) -> Result<String, Utf8Error> {
         self.as_str().map(|s| format!("{REMOTES_REF_BASE}/{s}"))
     }
 
@@ -49,12 +50,12 @@ pub trait Name {
     ///
     /// If this name can be represented as a `&str` without loss of information,
     /// this fn will return that representation.
-    fn as_str(&self) -> Option<&str>;
+    fn as_str(&self) -> Result<&str, Utf8Error>;
 }
 
-impl Name for Option<&str> {
-    fn as_str(&self) -> Option<&str> {
-        *self
+impl Name for &[u8] {
+    fn as_str(&self) -> Result<&str, Utf8Error> {
+        std::str::from_utf8(self)
     }
 }
 
