@@ -16,9 +16,6 @@ pub trait Reference<'r> {
     /// Type for reference names
     type Name;
 
-    /// Type for holding [Path] represenations of references
-    type Path: Poppable + AsRef<Path>;
-
     /// Type used for representing Object IDs
     type Oid: std::str::FromStr;
 
@@ -29,24 +26,24 @@ pub trait Reference<'r> {
     fn name(&'r self) -> Result<Self::Name, Self::Error>;
 
     /// Retrieve the [Path] representation of this reference
-    fn as_path(&'r self) -> Result<Self::Path, Self::Error>;
+    fn as_path(&self) -> Result<&Path, Self::Error>;
 
     /// Extract the defining parts of this reference regarding the issue
-    fn parts(&'r self) -> Option<Parts<Self::Path, Self::Oid>> {
+    fn parts(&self) -> Option<Parts<&Path, Self::Oid>> {
         let mut path = self.as_path().ok()?;
 
-        let kind = if path.as_ref().ends_with(HEAD_COMPONENT) {
+        let kind = if path.ends_with(HEAD_COMPONENT) {
             Kind::Head
         } else {
-            let id = path.as_ref().file_name()?.to_str()?.parse().ok()?;
+            let id = path.file_name()?.to_str()?.parse().ok()?;
             path.pop().then_some(())?;
-            path.as_ref().ends_with(LEAF_COMPONENT).then_some(())?;
+            path.ends_with(LEAF_COMPONENT).then_some(())?;
             Kind::Leaf(id)
         };
 
         path.pop().then_some(())?;
 
-        let issue = path.as_ref().file_name()?.to_str()?.parse().ok()?;
+        let issue = path.file_name()?.to_str()?.parse().ok()?;
         path.pop().then_some(Parts {
             prefix: path,
             issue,
@@ -63,7 +60,6 @@ pub trait Reference<'r> {
 
 impl<'r> Reference<'r> for git2::Reference<'_> {
     type Name = &'r str;
-    type Path = &'r Path;
     type Oid = git2::Oid;
     type Error = std::str::Utf8Error;
 
@@ -71,7 +67,7 @@ impl<'r> Reference<'r> for git2::Reference<'_> {
         std::str::from_utf8(self.name_bytes())
     }
 
-    fn as_path(&'r self) -> Result<Self::Path, Self::Error> {
+    fn as_path(&self) -> Result<&Path, Self::Error> {
         Reference::name(self).map(Path::new)
     }
 
@@ -139,7 +135,6 @@ pub(crate) mod tests {
 
     impl<'r> Reference<'r> for TestRef {
         type Name = &'r str;
-        type Path = std::path::PathBuf;
         type Oid = TestOid;
         type Error = TestError;
 
@@ -147,8 +142,8 @@ pub(crate) mod tests {
             self.name.to_str().ok_or(TestError)
         }
 
-        fn as_path(&'r self) -> Result<Self::Path, Self::Error> {
-            Ok(self.name.clone())
+        fn as_path(&self) -> Result<&Path, Self::Error> {
+            Ok(self.name.as_ref())
         }
 
         fn target(&self) -> Option<Self::Oid> {
@@ -158,9 +153,8 @@ pub(crate) mod tests {
 
     #[test]
     fn ref_parts_headref() {
-        let parts = TestRef::from("refs/dit/65b56706fdc3501749d008750c61a1f24b888f72/head")
-            .parts()
-            .expect("Could not extract parts");
+        let reference = TestRef::from("refs/dit/65b56706fdc3501749d008750c61a1f24b888f72/head");
+        let parts = reference.parts().expect("Could not extract parts");
         assert_eq!(parts.prefix, Path::new("refs/dit"));
         assert_eq!(parts.issue, "65b56706fdc3501749d008750c61a1f24b888f72");
         assert_eq!(parts.kind, Kind::Head);
@@ -168,9 +162,8 @@ pub(crate) mod tests {
 
     #[test]
     fn ref_parts_leaf() {
-        let parts = TestRef::from("refs/dit/65b56706fdc3501749d008750c61a1f24b888f72/leaves/f6bd121bdc2ba5906e412da19191a2eaf2025755")
-            .parts()
-            .expect("Could not extract parts");
+        let reference = TestRef::from("refs/dit/65b56706fdc3501749d008750c61a1f24b888f72/leaves/f6bd121bdc2ba5906e412da19191a2eaf2025755");
+        let parts = reference.parts().expect("Could not extract parts");
         assert_eq!(parts.prefix, Path::new("refs/dit"));
         assert_eq!(parts.issue, "65b56706fdc3501749d008750c61a1f24b888f72");
         assert_eq!(
