@@ -17,7 +17,6 @@ use std::collections::HashSet;
 
 use git2::{self, Commit, Tree};
 
-use crate::base::Base;
 use crate::error;
 use crate::reference;
 use crate::traversal::Traversible;
