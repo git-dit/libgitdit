@@ -10,7 +10,7 @@ use std::error::Error;
 use std::path::Path;
 
 /// A git reference
-pub trait Reference<'r> {
+pub trait Reference {
     /// Type for reference names
     type Name: ?Sized;
 
@@ -56,7 +56,7 @@ pub trait Reference<'r> {
     fn target(&self) -> Option<Self::Oid>;
 }
 
-impl<'r> Reference<'r> for git2::Reference<'_> {
+impl Reference for git2::Reference<'_> {
     type Name = str;
     type Oid = git2::Oid;
     type Error = std::str::Utf8Error;
@@ -131,7 +131,7 @@ pub(crate) mod tests {
         }
     }
 
-    impl<'r> Reference<'r> for TestRef {
+    impl Reference for TestRef {
         type Name = str;
         type Oid = TestOid;
         type Error = TestError;
