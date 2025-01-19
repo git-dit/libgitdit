@@ -139,6 +139,20 @@ pub trait Reference {
         })
     }
 
+    /// Check whether this is an issue head reference
+    fn is_head(&self) -> bool {
+        self.parts()
+            .map(|p| matches!(p.kind, Kind::Head))
+            .unwrap_or(false)
+    }
+
+    /// Check whether this is an issue leaf reference
+    fn is_leaf(&self) -> bool {
+        self.parts()
+            .map(|p| matches!(p.kind, Kind::Leaf(_)))
+            .unwrap_or(false)
+    }
+
     /// Retrieve the target of this reference
     ///
     /// This fn will return the target if this reference is direct. For indirect
