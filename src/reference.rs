@@ -15,14 +15,14 @@ use crate::error::InnerError;
 /// Some entity that stores [Reference]s
 pub trait Store<'r>: Base {
     /// Type used for representing references
-    type Reference<'a>: Reference<
+    type Reference: Reference<
         Oid = Self::Oid,
         Name: ToOwned<Owned = <<Self as Base>::InnerError as InnerError>::RefName>,
     >;
 }
 
 impl<'r> Store<'r> for git2::Repository {
-    type Reference<'a> = git2::Reference<'r>;
+    type Reference = git2::Reference<'r>;
 }
 
 /// A git reference
