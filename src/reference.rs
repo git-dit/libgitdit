@@ -12,7 +12,7 @@ use std::path::Path;
 /// A git reference
 pub trait Reference<'r> {
     /// Type for reference names
-    type Name;
+    type Name: ?Sized;
 
     /// Type used for representing Object IDs
     type Oid: std::str::FromStr;
@@ -21,7 +21,7 @@ pub trait Reference<'r> {
     type Error: Error;
 
     /// Retrieve the name of the reference
-    fn name(&'r self) -> Result<Self::Name, Self::Error>;
+    fn name(&self) -> Result<&Self::Name, Self::Error>;
 
     /// Retrieve the [Path] representation of this reference
     fn as_path(&self) -> Result<&Path, Self::Error>;
@@ -57,11 +57,11 @@ pub trait Reference<'r> {
 }
 
 impl<'r> Reference<'r> for git2::Reference<'_> {
-    type Name = &'r str;
+    type Name = str;
     type Oid = git2::Oid;
     type Error = std::str::Utf8Error;
 
-    fn name(&'r self) -> Result<Self::Name, Self::Error> {
+    fn name(&self) -> Result<&Self::Name, Self::Error> {
         std::str::from_utf8(self.name_bytes())
     }
 
@@ -132,11 +132,11 @@ pub(crate) mod tests {
     }
 
     impl<'r> Reference<'r> for TestRef {
-        type Name = &'r str;
+        type Name = str;
         type Oid = TestOid;
         type Error = TestError;
 
-        fn name(&'r self) -> Result<Self::Name, Self::Error> {
+        fn name(&self) -> Result<&Self::Name, Self::Error> {
             self.name.to_str().ok_or(TestError)
         }
 
