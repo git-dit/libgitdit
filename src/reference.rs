@@ -27,7 +27,7 @@ pub trait Reference {
     fn as_path(&self) -> Result<&Path, Self::Error>;
 
     /// Extract the defining parts of this reference regarding the issue
-    fn parts(&self) -> Option<Parts<&Path, Self::Oid>> {
+    fn parts(&self) -> Option<Parts<'_, Self::Oid>> {
         let mut path = self.as_path().ok()?;
 
         let kind = if path.ends_with(HEAD_COMPONENT) {
@@ -76,9 +76,9 @@ impl Reference for git2::Reference<'_> {
 
 /// Parts of a [Reference] associated to an issue
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Parts<P, O> {
+pub struct Parts<'p, O> {
     /// Path or namespace under which the issue resides
-    pub prefix: P,
+    pub prefix: &'p Path,
     /// Id of the associated issue
     pub issue: O,
     /// Kind of [Reference]
