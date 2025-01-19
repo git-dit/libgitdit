@@ -22,8 +22,6 @@ use crate::reference;
 use crate::traversal::Traversible;
 use gc;
 use issue::Issue;
-use iter;
-use utils::ResultIterExt;
 
 use error::*;
 use error::{Kind as EK};
@@ -130,7 +128,21 @@ pub trait RepositoryExt<'r>: reference::Store<'r> + Sized {
     /// Get all issue hashes
     ///
     /// This function returns all known issues known to the DIT repo.
-    fn issues(&'r self) -> Result<UniqueIssues<'r, Self>, Self::InnerError>;
+    fn issues(&'r self) -> error::Result<UniqueIssues<'r, Self>, Self::InnerError> {
+        use std::iter::FromIterator;
+
+        use remote::Names;
+
+        let mut issues: UniqueIssues<_> = Result::from_iter(self.issues_with_prefix("refs")?)?;
+        self.remote_names()?.ref_paths().try_for_each(|p| {
+            let path = p.wrap_with_kind(error::Kind::CannotConstructRevwalk)?;
+            for issue in self.issues_with_prefix(path.as_ref())? {
+                issues.insert(issue?);
+            }
+            Ok::<_, error::Error<Self::InnerError>>(())
+        })?;
+        Ok(issues)
+    }
 
     /// Create a new issue with an initial message
     fn create_issue<'a, A, I, J>(
@@ -148,14 +160,6 @@ pub trait RepositoryExt<'r>: reference::Store<'r> + Sized {
 }
 
 impl<'r> RepositoryExt<'r> for git2::Repository {
-    fn issues(&'r self) -> Result<UniqueIssues<'r, Self>, Self::InnerError> {
-        let glob = "**/dit/**/head";
-        self.references_glob(glob)
-            .wrap_with(|| EK::CannotGetReferences(glob.to_owned()))
-            .map(|refs| iter::HeadRefsToIssuesIter::new(self, refs))?
-            .collect_result()
-    }
-
     fn create_issue<'a, A, I, J>(
         &'r self,
         author: &git2::Signature,
