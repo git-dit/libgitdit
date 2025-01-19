@@ -104,7 +104,28 @@ pub trait RepositoryExt<'r>: reference::Store<'r> + Sized {
     fn issues_with_prefix(
         &'r self,
         prefix: &str,
-    ) -> Result<UniqueIssues<'r, Self>, Self::InnerError>;
+    ) -> error::Result<
+        impl IntoIterator<Item = error::Result<Issue<'r, Self>, Self::InnerError>>,
+        Self::InnerError,
+    > {
+        use issue::DIT_REF_PART;
+        use reference::Reference;
+
+        let path = format!("{prefix}/{DIT_REF_PART}");
+        let res = self
+            .references(path.as_ref())?
+            .into_iter()
+            .map(move |r| {
+                let issue = r
+                    .wrap_with_kind(error::Kind::CannotGetReference)?
+                    .parts()
+                    .filter(|p| p.kind == reference::Kind::Head)
+                    .map(|p| Issue::new_unchecked(self, p.issue));
+                Ok(issue)
+            })
+            .flat_map(Result::transpose);
+        Ok(res)
+    }
 
     /// Get all issue hashes
     ///
@@ -127,17 +148,6 @@ pub trait RepositoryExt<'r>: reference::Store<'r> + Sized {
 }
 
 impl<'r> RepositoryExt<'r> for git2::Repository {
-    fn issues_with_prefix(
-        &'r self,
-        prefix: &str,
-    ) -> Result<UniqueIssues<'r, Self>, Self::InnerError> {
-        let glob = format!("{}/dit/**/head", prefix);
-        self.references_glob(&glob)
-            .wrap_with_kind(EK::CannotGetReferences(glob))
-            .map(|refs| iter::HeadRefsToIssuesIter::new(self, refs))?
-            .collect_result()
-    }
-
     fn issues(&'r self) -> Result<UniqueIssues<'r, Self>, Self::InnerError> {
         let glob = "**/dit/**/head";
         self.references_glob(glob)
