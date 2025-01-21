@@ -7,3 +7,4 @@
 //! Object related facilities
 
 pub mod commit;
+pub mod tree;
