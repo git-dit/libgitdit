@@ -91,6 +91,34 @@ impl<'r, R: Database<'r>> Issue<'r, R> {
     }
 }
 
+impl<'r, R: Database<'r> + Traversible<'r>> Issue<'r, R> {
+    /// Get messages of the issue starting from a specific one
+    ///
+    /// The [Iterator] returned will return all first parents up to and
+    /// including the initial message of the issue.
+    pub fn messages_from(
+        &self,
+        message: R::Oid,
+    ) -> error::Result<<R::TraversalBuilder as TraversalBuilder>::Iter, R::InnerError> {
+        self.terminated_messages()?
+            .with_head(message)
+            .and_then(TraversalBuilder::build)
+            .map_err(Into::into)
+            .wrap_with_kind(error::Kind::CannotConstructRevwalk)
+    }
+
+    /// Prepare a messages iterator which will terminate at the initial message
+    pub fn terminated_messages(&self) -> error::Result<R::TraversalBuilder, R::InnerError> {
+        use object::commit::Commit;
+
+        self.repo()
+            .traversal_builder()?
+            .with_ends(self.initial_message()?.parent_ids())
+            .map_err(Into::into)
+            .wrap_with_kind(error::Kind::CannotConstructRevwalk)
+    }
+}
+
 impl<'r> Issue<'r, git2::Repository> {
     /// Get possible heads of the issue
     ///
@@ -162,25 +190,6 @@ impl<'r> Issue<'r, git2::Repository> {
                     .wrap_with_kind(EK::CannotConstructRevwalk)
             })?
             .build()
-            .wrap_with_kind(EK::CannotConstructRevwalk)
-    }
-
-    /// Get messages of the issue starting from a specific one
-    ///
-    /// The [Iterator] returned will return all first parents up to and
-    /// including the initial message of the issue.
-    pub fn messages_from(&self, message: Oid) -> Result<git2::Revwalk<'r>, git2::Error> {
-        self.terminated_messages()?
-            .with_head(message)
-            .and_then(TraversalBuilder::build)
-            .wrap_with_kind(EK::CannotConstructRevwalk)
-    }
-
-    /// Prepare a messages iterator which will terminate at the initial message
-    pub fn terminated_messages(&self) -> Result<git2::Revwalk<'r>, git2::Error> {
-        self.repo
-            .traversal_builder()?
-            .with_ends(self.initial_message()?.parent_ids())
             .wrap_with_kind(EK::CannotConstructRevwalk)
     }
 
