@@ -19,6 +19,7 @@ use std::result::Result as RResult;
 
 use crate::base::Base;
 use crate::error;
+use crate::object::Database;
 use crate::traversal::{TraversalBuilder, Traversible};
 use error::*;
 use error::Kind as EK;
@@ -83,15 +84,14 @@ impl<'r, R: Base> Issue<'r, R> {
     }
 }
 
-impl<'r> Issue<'r, git2::Repository> {
+impl<'r, R: Database<'r>> Issue<'r, R> {
     /// Get the issue's initial message
-    ///
-    pub fn initial_message(&self) -> Result<git2::Commit<'r>, git2::Error> {
-        self.repo
-            .find_commit(*self.id())
-            .wrap_with(|| error::Kind::CannotGetCommitForRev(self.id().to_string()))
+    pub fn initial_message(&self) -> error::Result<R::Commit, R::InnerError> {
+        self.repo().find_commit(self.id().clone())
     }
+}
 
+impl<'r> Issue<'r, git2::Repository> {
     /// Get possible heads of the issue
     ///
     /// Returns the head references from both the local repository and remotes
