@@ -132,6 +132,7 @@ pub enum Kind<I: InnerError> {
     CannotGetReference,
     CannotDeleteReference(I::RefName),
     CannotGetRemotes,
+    CannotGetTree,
     CannotBuildTree,
     CannotFindIssueHead(I::Oid),
     CannotSetReference(String),
@@ -165,6 +166,7 @@ impl<I: InnerError> fmt::Display for Kind<I> {
             }
             Self::CannotDeleteReference(r) => write!(f, "cannot delete the reference '{r}'"),
             Self::CannotGetRemotes => write!(f, "cannot get remotes"),
+            Self::CannotGetTree => write!(f, "cannot get a specific tree from repository"),
             Self::CannotBuildTree => write!(f, "cannot build Tree"),
             Self::CannotFindIssueHead(i) => write!(f, "cannot find issue HEAD for {i}"),
             Self::CannotSetReference(r) => write!(f, "cannot update or create reference '{r}'"),
