@@ -25,6 +25,9 @@ pub trait Database<'r>: Base {
     /// Type for representing signautres
     type Signature<'s>;
 
+    /// A builder for trees
+    type TreeBuilder: tree::Builder<Oid = Self::Oid, Error: Into<Self::InnerError>>;
+
     /// Retrieve the signature to use for author
     fn author(&self) -> error::Result<Self::Signature<'_>, Self::InnerError>;
 
@@ -36,12 +39,22 @@ pub trait Database<'r>: Base {
 
     /// Retrieve a specific tree
     fn find_tree(&'r self, oid: Self::Oid) -> error::Result<Self::Tree, Self::InnerError>;
+
+    /// Create a tree builder initialized for an empty tree
+    fn empty_tree_builder(&'r self) -> error::Result<Self::TreeBuilder, Self::InnerError>;
+
+    /// Create a tree builder initialized for an empty tree
+    fn tree_builder(
+        &'r self,
+        tree: &Self::Tree,
+    ) -> error::Result<Self::TreeBuilder, Self::InnerError>;
 }
 
 impl<'r> Database<'r> for git2::Repository {
     type Commit = git2::Commit<'r>;
     type Tree = git2::Tree<'r>;
     type Signature<'s> = git2::Signature<'s>;
+    type TreeBuilder = git2::TreeBuilder<'r>;
 
     fn author(&self) -> error::Result<Self::Signature<'_>, Self::InnerError> {
         self.signature()
@@ -58,5 +71,18 @@ impl<'r> Database<'r> for git2::Repository {
 
     fn find_tree(&'r self, oid: Self::Oid) -> error::Result<Self::Tree, Self::InnerError> {
         git2::Repository::find_tree(self, oid).wrap_with_kind(error::Kind::CannotGetTree)
+    }
+
+    fn empty_tree_builder(&'r self) -> error::Result<Self::TreeBuilder, Self::InnerError> {
+        self.treebuilder(None)
+            .wrap_with_kind(error::Kind::CannotCreateTreeBuilder)
+    }
+
+    fn tree_builder(
+        &'r self,
+        tree: &Self::Tree,
+    ) -> error::Result<Self::TreeBuilder, Self::InnerError> {
+        self.treebuilder(Some(tree))
+            .wrap_with_kind(error::Kind::CannotCreateTreeBuilder)
     }
 }
