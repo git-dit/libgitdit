@@ -40,6 +40,16 @@ pub trait Database<'r>: Base {
     /// Retrieve a specific tree
     fn find_tree(&'r self, oid: Self::Oid) -> error::Result<Self::Tree, Self::InnerError>;
 
+    /// Create a new commit
+    fn commit<'s>(
+        &'r self,
+        author: &Self::Signature<'s>,
+        committer: &Self::Signature<'s>,
+        message: &str,
+        tree: &Self::Tree,
+        parents: &[&Self::Commit],
+    ) -> error::Result<Self::Oid, Self::InnerError>;
+
     /// Create a tree builder initialized for an empty tree
     fn empty_tree_builder(&'r self) -> error::Result<Self::TreeBuilder, Self::InnerError>;
 
@@ -71,6 +81,19 @@ impl<'r> Database<'r> for git2::Repository {
 
     fn find_tree(&'r self, oid: Self::Oid) -> error::Result<Self::Tree, Self::InnerError> {
         git2::Repository::find_tree(self, oid).wrap_with_kind(error::Kind::CannotGetTree)
+    }
+
+    /// Create a new commit
+    fn commit<'s>(
+        &'r self,
+        author: &Self::Signature<'s>,
+        committer: &Self::Signature<'s>,
+        message: &str,
+        tree: &Self::Tree,
+        parents: &[&Self::Commit],
+    ) -> error::Result<Self::Oid, Self::InnerError> {
+        git2::Repository::commit(self, None, author, committer, message, tree, parents)
+            .wrap_with_kind(error::Kind::CannotCreateMessage)
     }
 
     fn empty_tree_builder(&'r self) -> error::Result<Self::TreeBuilder, Self::InnerError> {
