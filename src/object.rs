@@ -22,6 +22,15 @@ pub trait Database<'r>: Base {
     /// Type used for representing trees
     type Tree;
 
+    /// Type for representing signautres
+    type Signature<'s>;
+
+    /// Retrieve the signature to use for author
+    fn author(&self) -> error::Result<Self::Signature<'_>, Self::InnerError>;
+
+    /// Retrieve the signature to use for committer
+    fn committer(&self) -> error::Result<Self::Signature<'_>, Self::InnerError>;
+
     /// Retrieve a specific commit
     fn find_commit(&'r self, oid: Self::Oid) -> error::Result<Self::Commit, Self::InnerError>;
 
@@ -32,6 +41,16 @@ pub trait Database<'r>: Base {
 impl<'r> Database<'r> for git2::Repository {
     type Commit = git2::Commit<'r>;
     type Tree = git2::Tree<'r>;
+    type Signature<'s> = git2::Signature<'s>;
+
+    fn author(&self) -> error::Result<Self::Signature<'_>, Self::InnerError> {
+        self.signature()
+            .wrap_with_kind(error::Kind::CannotGetSignature)
+    }
+
+    fn committer(&self) -> error::Result<Self::Signature<'_>, Self::InnerError> {
+        self.author()
+    }
 
     fn find_commit(&'r self, oid: Self::Oid) -> error::Result<Self::Commit, Self::InnerError> {
         git2::Repository::find_commit(self, oid).wrap_with_kind(error::Kind::CannotGetCommit)
