@@ -13,7 +13,6 @@ use std::str::Utf8Error;
 /// Alias for wrapping git library specific [Error](std::error::Error)s
 pub type Result<T, I> = std::result::Result<T, Error<I>>;
 
-
 /// Extension trait for convenience functionality
 pub(crate) trait ResultExt<T, I: Into<Inner<E>>, E: InnerError> {
     /// Wrap an error with a specific [Kind]
@@ -38,7 +37,6 @@ where
         self.map_err(|e| Error::from(kind()).with_inner(e))
     }
 }
-
 
 /// Custom [Error](std::error::Error) type for this library
 #[derive(Clone, Debug)]
@@ -178,7 +176,6 @@ impl<I: InnerError> fmt::Display for Kind<I> {
         }
     }
 }
-
 
 /// [Error](std::error::Error) type specific to a git implementation
 ///
