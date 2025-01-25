@@ -40,6 +40,31 @@ pub trait Database<'r>: Base {
     /// Retrieve a specific tree
     fn find_tree(&'r self, oid: Self::Oid) -> error::Result<Self::Tree, Self::InnerError>;
 
+    /// Create a new builder for [Self::Commit]s
+    fn commit_builder<'c, F>(
+        &'r self,
+        follow_up: F,
+    ) -> error::Result<commit::Builder<'r, 'c, Self, F>, Self::InnerError>
+    where
+        F: commit::FollowUp<Self>,
+        Self: Sized,
+        'r: 'c,
+    {
+        use self::tree::Builder;
+
+        let author = self.author()?;
+        let committer = self.committer()?;
+        let tree = self
+            .empty_tree_builder()?
+            .write()
+            .map_err(Into::into)
+            .wrap_with_kind(error::Kind::CannotGetTree)?;
+        let tree = self.find_tree(tree)?;
+        Ok(commit::Builder::new(
+            self, author, committer, tree, follow_up,
+        ))
+    }
+
     /// Create a new commit
     fn commit<'s>(
         &'r self,
