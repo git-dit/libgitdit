@@ -154,23 +154,27 @@ impl<I: InnerError> Kind<I> {
 impl<I: InnerError> fmt::Display for Kind<I> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::CannotCreateMessage       => write!(f, "cannot create a message"),
-            Self::CannotConstructRevwalk    => write!(f, "cannot construct a revision walk"),
-            Self::CannotGetCommit           => write!(f, "cannot get a specific commit from repository"),
-            Self::CannotGetCommitForRev(r)  => write!(f, "cannot get commit from rev '{}'", r),
-            Self::ReferenceNameError        => write!(f, "error getting reference name"),
-            Self::CannotGetReferences(g)    => write!(f, "cannot get references '{}' from repository", g),
-            Self::CannotGetReference        => write!(f, "cannot get a specific reference from repository"),
-            Self::CannotDeleteReference(r)  => write!(f, "cannot delete the reference '{}'", r),
-            Self::CannotGetRemotes          => write!(f, "cannot get remotes"),
-            Self::CannotBuildTree           => write!(f, "cannot build Tree"),
-            Self::CannotFindIssueHead(i)    => write!(f, "cannot find issue HEAD for {}", i),
-            Self::CannotSetReference(r)     => write!(f, "cannot update or create reference '{}'", r),
-            Self::NoTreeInitFound(i)        => write!(f, "cannot find any tree init for {}", i),
-            Self::OidFormatError(n)         => write!(f, "malformed OID: {}", n),
-            Self::MalFormedHeadReference(n) => write!(f, "malformed head refernece: {}", n),
-            Self::TrailerFormatError(t)     => write!(f, "malformed trailer: {}", t),
-            Self::MalformedMessage          => write!(f, "malformed message"),
+            Self::CannotCreateMessage => write!(f, "cannot create a message"),
+            Self::CannotConstructRevwalk => write!(f, "cannot construct a revision walk"),
+            Self::CannotGetCommit => write!(f, "cannot get a specific commit from repository"),
+            Self::CannotGetCommitForRev(r) => write!(f, "cannot get commit from rev '{r}'"),
+            Self::ReferenceNameError => write!(f, "error getting reference name"),
+            Self::CannotGetReferences(g) => {
+                write!(f, "cannot get references '{g}' from repository")
+            }
+            Self::CannotGetReference => {
+                write!(f, "cannot get a specific reference from repository")
+            }
+            Self::CannotDeleteReference(r) => write!(f, "cannot delete the reference '{r}'"),
+            Self::CannotGetRemotes => write!(f, "cannot get remotes"),
+            Self::CannotBuildTree => write!(f, "cannot build Tree"),
+            Self::CannotFindIssueHead(i) => write!(f, "cannot find issue HEAD for {i}"),
+            Self::CannotSetReference(r) => write!(f, "cannot update or create reference '{r}'"),
+            Self::NoTreeInitFound(i) => write!(f, "cannot find any tree init for {i}"),
+            Self::OidFormatError(n) => write!(f, "malformed OID: {n}"),
+            Self::MalFormedHeadReference(n) => write!(f, "malformed head refernece: {n}"),
+            Self::TrailerFormatError(t) => write!(f, "malformed trailer: {t}"),
+            Self::MalformedMessage => write!(f, "malformed message"),
         }
     }
 }
