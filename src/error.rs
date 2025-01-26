@@ -112,8 +112,9 @@ impl<I: InnerError> fmt::Display for Error<I> {
     }
 }
 
+/// Encapsulation of inner errors for [Error]
 #[derive(Clone, Debug)]
-enum Inner<I> {
+pub(crate) enum Inner<I> {
     Error(I),
     Utf8(Utf8Error),
     Format(fmt::Error),
