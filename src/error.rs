@@ -172,6 +172,13 @@ pub enum Kind<I: InnerError> {
     Other,
 }
 
+impl<I: InnerError> Kind<I> {
+    /// Wrap this [Kind] into an [Error] with the given inner error
+    pub(crate) fn wrap(self, err: impl Into<Inner<I>>) -> Error<I> {
+        Error::from(self).with_inner(err.into())
+    }
+}
+
 impl<I: InnerError> fmt::Display for Kind<I> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
