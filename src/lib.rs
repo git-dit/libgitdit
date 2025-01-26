@@ -36,7 +36,6 @@
 
 #[macro_use] extern crate lazy_static;
 extern crate git2;
-extern crate poppable_path;
 extern crate regex;
 
 pub mod base;
