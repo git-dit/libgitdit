@@ -142,7 +142,6 @@ pub enum Kind<I: InnerError> {
     MalFormedHeadReference(I::RefName),
     TrailerFormatError(String),
     MalformedMessage,
-    Other,
 }
 
 impl<I: InnerError> Kind<I> {
@@ -172,7 +171,6 @@ impl<I: InnerError> fmt::Display for Kind<I> {
             Self::MalFormedHeadReference(n) => write!(f, "malformed head refernece: {}", n),
             Self::TrailerFormatError(t)     => write!(f, "malformed trailer: {}", t),
             Self::MalformedMessage          => write!(f, "malformed message"),
-            Self::Other                     => write!(f, "other"),
         }
     }
 }
