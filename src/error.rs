@@ -73,33 +73,6 @@ impl<I: InnerError> From<Kind<I>> for Error<I> {
     }
 }
 
-impl<I: InnerError> From<Inner<I>> for Error<I> {
-    fn from(inner: Inner<I>) -> Self {
-        Self {
-            inner: Some(inner),
-            kind: Kind::Other,
-        }
-    }
-}
-
-impl<I: InnerError> From<I> for Error<I> {
-    fn from(inner: I) -> Self {
-        Inner::Error(inner).into()
-    }
-}
-
-impl<I: InnerError> From<Utf8Error> for Error<I> {
-    fn from(err: Utf8Error) -> Self {
-        Inner::Utf8(err).into()
-    }
-}
-
-impl<I: InnerError> From<fmt::Error> for Error<I> {
-    fn from(err: fmt::Error) -> Self {
-        Inner::Format(err).into()
-    }
-}
-
 impl<I: InnerError + 'static> std::error::Error for Error<I> {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         self.inner.as_ref().map(Inner::as_dyn)
