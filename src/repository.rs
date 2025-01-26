@@ -61,7 +61,9 @@ pub trait RepositoryExt<'r>: Base + Sized {
         Self: Traversible<'r>,
     {
         for message in self.first_parent_messages(message.clone())? {
-            let message = message.map_err(Into::into).wrap_with_kind(EK::Other)?;
+            let message = message
+                .map_err(Into::into)
+                .wrap_with_kind(error::Kind::CannotGetCommit)?;
             if let Ok(issue) = self.find_issue(message) {
                 return Ok(issue);
             }
