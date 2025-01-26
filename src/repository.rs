@@ -61,7 +61,9 @@ pub trait RepositoryExt<'r>: Base + Sized {
         Self: Traversible<'r>,
     {
         for message in self.first_parent_messages(message.clone())? {
-            let message = message.map_err(Into::into).wrap_with_kind(EK::Other)?;
+            let message = message
+                .map_err(Into::into)
+                .wrap_with_kind(error::Kind::CannotGetCommit)?;
             if let Ok(issue) = self.find_issue(message) {
                 return Ok(issue);
             }
@@ -128,7 +130,7 @@ impl<'r> RepositoryExt<'r> for git2::Repository {
             .map(|p| Issue::new_unchecked(self, p.issue))
             .ok_or_else(|| match Reference::name(head_ref) {
                 Ok(s) => error::Kind::MalFormedHeadReference(s.into()).into(),
-                Err(e) => e.into(),
+                Err(e) => error::Kind::CannotGetReference.wrap(e),
             })
     }
 

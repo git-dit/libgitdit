@@ -14,6 +14,7 @@
 
 use git2::{self, Reference};
 
+use crate::error;
 use issue::{Issue, IssueRefType};
 use iter::{self, RefsReferringTo};
 use utils::ResultIterExt;
@@ -130,12 +131,14 @@ impl<'r> CollectableRefs<'r>
                 ReferenceCollectionSpec::Never => {},
                 ReferenceCollectionSpec::BackedByRemoteHead => {
                     for item in issue.remote_refs(IssueRefType::Head)? {
-                        head_history.push(
-                            item?
-                                .peel(git2::ObjectType::Commit)
-                                .wrap_with_kind(EK::CannotGetCommit)?
-                                .id()
-                        )?;
+                        let id = item
+                            .wrap_with_kind(error::Kind::CannotGetReference)?
+                            .peel(git2::ObjectType::Commit)
+                            .wrap_with_kind(EK::CannotGetCommit)?
+                            .id();
+                        head_history
+                            .push(id)
+                            .wrap_with_kind(error::Kind::CannotConstructRevwalk)?;
                     }
                 },
             };
@@ -146,7 +149,7 @@ impl<'r> CollectableRefs<'r>
 
         // local leaves
         for item in issue.local_refs(IssueRefType::Leaf)? {
-            let leaf = item?;
+            let leaf = item.wrap_with_kind(error::Kind::CannotGetReference)?;
             // NOTE: We push the parents of the references rather than the
             //       references themselves since that would cause the
             //       `RefsReferringTo` report that exact same reference.
@@ -157,11 +160,12 @@ impl<'r> CollectableRefs<'r>
         // remote refs
         if self.consider_remote_refs {
             for item in issue.remote_refs(IssueRefType::Any)? {
-                retval.push(item?
+                let id = item
+                    .wrap_with_kind(error::Kind::CannotGetReference)?
                     .peel(git2::ObjectType::Commit)
                     .wrap_with_kind(EK::CannotGetCommit)?
-                    .id()
-                )?;
+                    .id();
+                retval.push(id)?;
             }
         }
 
