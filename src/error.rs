@@ -69,7 +69,7 @@ impl<I: InnerError> Error<I> {
 
 impl<I: InnerError> From<Kind<I>> for Error<I> {
     fn from(kind: Kind<I>) -> Self {
-        Self {inner: None, kind}
+        Self { inner: None, kind }
     }
 }
 
