@@ -120,6 +120,24 @@ pub(crate) enum Inner<I> {
     Format(fmt::Error),
 }
 
+impl<I: InnerError> From<I> for Inner<I> {
+    fn from(err: I) -> Self {
+        Self::Error(err)
+    }
+}
+
+impl<I> From<Utf8Error> for Inner<I> {
+    fn from(err: Utf8Error) -> Self {
+        Self::Utf8(err)
+    }
+}
+
+impl<I> From<fmt::Error> for Inner<I> {
+    fn from(err: fmt::Error) -> Self {
+        Self::Format(err)
+    }
+}
+
 /// Kinds of errors which may be emitted by this library
 #[derive(Clone, Debug)]
 pub enum Kind<I: InnerError> {
