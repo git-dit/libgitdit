@@ -128,7 +128,7 @@ impl<'r> RepositoryExt<'r> for git2::Repository {
             .map(|p| Issue::new_unchecked(self, p.issue))
             .ok_or_else(|| match Reference::name(head_ref) {
                 Ok(s) => error::Kind::MalFormedHeadReference(s.into()).into(),
-                Err(e) => e.into(),
+                Err(e) => error::Kind::CannotGetReference.wrap(e),
             })
     }
 
