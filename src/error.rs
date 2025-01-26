@@ -44,10 +44,10 @@ pub struct Error<I: InnerError> {
 }
 
 impl<I: InnerError> Error<I> {
-    /// Set an inner error
-    pub fn with_inner(self, inner: I) -> Self {
+    /// Set an [Inner] error
+    fn with_inner(self, inner: impl Into<Inner<I>>) -> Self {
         Self {
-            inner: Some(Inner::Error(inner)),
+            inner: Some(inner.into()),
             ..self
         }
     }
