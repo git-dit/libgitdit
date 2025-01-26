@@ -98,11 +98,7 @@ impl<I: InnerError> From<fmt::Error> for Error<I> {
 
 impl<I: InnerError + 'static> std::error::Error for Error<I> {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        self.inner.as_ref().map(|x| match x {
-            Inner::Error(i) => i as &(dyn std::error::Error + 'static),
-            Inner::Utf8(i) => i as &(dyn std::error::Error + 'static),
-            Inner::Format(i) => i as &(dyn std::error::Error + 'static),
-        })
+        self.inner.as_ref().map(Inner::as_dyn)
     }
 }
 
@@ -135,6 +131,17 @@ impl<I> From<Utf8Error> for Inner<I> {
 impl<I> From<fmt::Error> for Inner<I> {
     fn from(err: fmt::Error) -> Self {
         Self::Format(err)
+    }
+}
+
+impl<I: std::error::Error + 'static> Inner<I> {
+    /// Retrieve the inner error as a trait object
+    fn as_dyn(&self) -> &(dyn std::error::Error + 'static) {
+        match self {
+            Self::Error(i) => i,
+            Self::Utf8(i) => i,
+            Self::Format(i) => i,
+        }
     }
 }
 
