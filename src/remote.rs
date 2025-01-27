@@ -35,6 +35,17 @@ impl Names for git2::string_array::StringArray {
     }
 }
 
+impl Names for Vec<String> {
+    type NameIter<'n>
+        = std::iter::Map<std::slice::Iter<'n, String>, fn(&String) -> &[u8]>
+    where
+        Self: 'n;
+
+    fn names(&self) -> Self::NameIter<'_> {
+        self.iter().map(AsRef::as_ref)
+    }
+}
+
 /// Name of a remote git repository
 pub trait Name {
     /// Reference prefix for this repository
