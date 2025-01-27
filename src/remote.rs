@@ -86,4 +86,22 @@ impl<'r> RemoteExt for Remote<'r> {
     }
 }
 
-const REMOTES_REF_BASE: &str = "refs/remotes/";
+const REMOTES_REF_BASE: &str = "refs/remotes";
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn name_as_str() {
+        assert_eq!(b"foo".as_slice().as_str(), Ok("foo"));
+    }
+
+    #[test]
+    fn name_ref_path() {
+        assert_eq!(
+            b"foo".as_slice().ref_path(),
+            Ok("refs/remotes/foo".to_owned()),
+        );
+    }
+}
