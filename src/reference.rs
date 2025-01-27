@@ -194,10 +194,78 @@ pub(crate) const LEAF_COMPONENT: &str = "leaves";
 pub(crate) mod tests {
     use super::*;
 
+    use std::collections::BTreeSet;
     use std::path::PathBuf;
 
     use crate::base::tests::TestOid;
     use crate::error::tests::TestError;
+
+    #[derive(Default)]
+    pub struct TestStore {
+        refs: std::sync::Mutex<BTreeSet<TestRef>>,
+        remotes: Vec<String>,
+    }
+
+    impl<'r> Store<'r> for TestStore {
+        type Reference = TestRef;
+        type References = Vec<Result<TestRef, TestError>>;
+        type RemoteNames = Vec<String>;
+
+        fn get_reference(
+            &'r self,
+            path: &Path,
+        ) -> error::Result<Option<Self::Reference>, Self::InnerError> {
+            Ok(self
+                .refs
+                .lock()
+                .expect("Could not access refs")
+                .get(path)
+                .cloned())
+        }
+
+        fn references(
+            &'r self,
+            prefix: &Path,
+        ) -> error::Result<Self::References, Self::InnerError> {
+            let res = self
+                .refs
+                .lock()
+                .expect("Could not access refs")
+                .iter()
+                .filter(|r| r.name.starts_with(prefix))
+                .cloned()
+                .map(Ok)
+                .collect();
+            Ok(res)
+        }
+
+        fn set_reference(
+            &'r self,
+            name: &Path,
+            target: Self::Oid,
+            overwrite: bool,
+            _reflog_msg: &str,
+        ) -> error::Result<Self::Reference, Self::InnerError> {
+            let new = TestRef::from(name.to_owned()).with_target(target);
+            let mut refs = self.refs.lock().expect("Could not access refs");
+            if overwrite {
+                refs.replace(new.clone());
+            } else {
+                refs.insert(new.clone());
+            }
+
+            Ok(new)
+        }
+
+        fn remote_names(&self) -> error::Result<Self::RemoteNames, Self::InnerError> {
+            Ok(self.remotes.clone())
+        }
+    }
+
+    impl Base for TestStore {
+        type Oid = TestOid;
+        type InnerError = TestError;
+    }
 
     #[derive(Clone, Debug)]
     pub struct TestRef {
