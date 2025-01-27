@@ -194,12 +194,14 @@ pub(crate) const LEAF_COMPONENT: &str = "leaves";
 pub(crate) mod tests {
     use super::*;
 
+    use std::path::PathBuf;
+
     use crate::base::tests::TestOid;
     use crate::error::tests::TestError;
 
     #[derive(Clone, Debug)]
     pub struct TestRef {
-        name: std::path::PathBuf,
+        name: PathBuf,
         target: Option<TestOid>,
     }
 
@@ -212,12 +214,15 @@ pub(crate) mod tests {
         }
     }
 
+    impl From<PathBuf> for TestRef {
+        fn from(name: PathBuf) -> Self {
+            Self { name, target: None }
+        }
+    }
+
     impl From<&str> for TestRef {
         fn from(path: &str) -> Self {
-            Self {
-                name: path.into(),
-                target: None,
-            }
+            PathBuf::from(path).into()
         }
     }
 
