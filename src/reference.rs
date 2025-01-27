@@ -221,6 +221,32 @@ pub(crate) mod tests {
         }
     }
 
+    impl std::borrow::Borrow<Path> for TestRef {
+        fn borrow(&self) -> &Path {
+            &self.name
+        }
+    }
+
+    impl Eq for TestRef {}
+
+    impl PartialEq for TestRef {
+        fn eq(&self, other: &Self) -> bool {
+            PartialEq::eq(&self.name, &other.name)
+        }
+    }
+
+    impl Ord for TestRef {
+        fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+            Ord::cmp(&self.name, &other.name)
+        }
+    }
+
+    impl PartialOrd for TestRef {
+        fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+            PartialOrd::partial_cmp(&self.name, &other.name)
+        }
+    }
+
     impl Reference for TestRef {
         type Name = str;
         type Oid = TestOid;
