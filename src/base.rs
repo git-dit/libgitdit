@@ -35,7 +35,7 @@ impl Base for git2::Repository {
 pub(crate) mod tests {
     use super::*;
 
-    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+    #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
     pub struct TestOid([u8; 20]);
 
     impl fmt::Display for TestOid {
