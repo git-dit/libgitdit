@@ -99,6 +99,40 @@ impl<'r> Store<'r> for git2::Repository {
     }
 }
 
+/// Extension trait for [Iterator]s over [Reference]s
+pub trait References {
+    /// [Reference] yielded by this [Iterator]
+    type Reference: Reference;
+
+    /// Errors yielded by this [Iterator]
+    type Error;
+
+    /// Yield only head references
+    fn heads(self) -> impl Iterator<Item = Result<Self::Reference, Self::Error>>;
+
+    /// Yield only leaf references
+    fn leaves(self) -> impl Iterator<Item = Result<Self::Reference, Self::Error>>;
+}
+
+impl<T, R, E> References for T
+where
+    T: IntoIterator<Item = Result<R, E>>,
+    R: Reference,
+{
+    type Reference = R;
+    type Error = E;
+
+    fn heads(self) -> impl Iterator<Item = Result<Self::Reference, Self::Error>> {
+        self.into_iter()
+            .filter(|r| r.as_ref().map(Reference::is_head).unwrap_or(true))
+    }
+
+    fn leaves(self) -> impl Iterator<Item = Result<Self::Reference, Self::Error>> {
+        self.into_iter()
+            .filter(|r| r.as_ref().map(Reference::is_leaf).unwrap_or(true))
+    }
+}
+
 /// A git reference
 pub trait Reference {
     /// Type for reference names
