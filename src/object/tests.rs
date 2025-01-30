@@ -9,9 +9,161 @@
 use super::*;
 
 use std::borrow::Borrow;
+use std::collections::HashSet;
 use std::hash::{self, Hash};
+use std::sync;
 
 use crate::base::tests::TestOid;
+use crate::error::tests::TestError;
+
+#[derive(Default, Debug)]
+pub struct TestOdb {
+    objects: sync::RwLock<HashSet<TestObject>>,
+    id_counter: sync::Mutex<TestOid>,
+    author: String,
+    committer: String,
+}
+
+impl TestOdb {
+    pub fn with_objects(mut self, objects: impl Iterator<Item = TestObject>) -> Self {
+        let db = self.objects.get_mut().expect("Could not access objects");
+        db.extend(objects);
+        let id = self.id_counter.get_mut().expect("Could not write oid");
+        *id = db
+            .iter()
+            .map(Borrow::<TestOid>::borrow)
+            .max()
+            .cloned()
+            .unwrap_or_default();
+        self
+    }
+
+    pub fn with_author(self, author: String) -> Self {
+        Self { author, ..self }
+    }
+
+    pub fn with_committer(self, committer: String) -> Self {
+        Self { committer, ..self }
+    }
+
+    pub fn ro_objects(&self) -> sync::RwLockReadGuard<'_, HashSet<TestObject>> {
+        self.objects.read().expect("Could not read object")
+    }
+
+    fn next_oid(&self) -> TestOid {
+        let mut oid = self.id_counter.lock().expect("Could not compute next oid");
+        *oid += 1;
+        oid.clone()
+    }
+}
+
+impl<'r> Database<'r> for TestOdb {
+    type Commit = TestCommit;
+    type Tree = TestTree;
+    type Signature<'s> = &'s str;
+    type TreeBuilder = TestTreeBuilder<'r>;
+
+    fn author(&self) -> error::Result<Self::Signature<'_>, Self::InnerError> {
+        Ok(self.author.as_ref())
+    }
+
+    fn committer(&self) -> error::Result<Self::Signature<'_>, Self::InnerError> {
+        Ok(self.committer.as_ref())
+    }
+
+    fn find_commit(&'r self, oid: Self::Oid) -> error::Result<Self::Commit, Self::InnerError> {
+        self.ro_objects()
+            .get(&oid)
+            .and_then(|o| {
+                if let TestObject::Commit(c) = o {
+                    Some(c.clone())
+                } else {
+                    None
+                }
+            })
+            .ok_or(TestError)
+            .wrap_with_kind(error::Kind::CannotGetCommit)
+    }
+
+    fn find_tree(&'r self, oid: Self::Oid) -> error::Result<Self::Tree, Self::InnerError> {
+        self.ro_objects()
+            .get(&oid)
+            .and_then(|o| {
+                if let TestObject::Tree(t) = o {
+                    Some(t.clone())
+                } else {
+                    None
+                }
+            })
+            .ok_or(TestError)
+            .wrap_with_kind(error::Kind::CannotGetTree)
+    }
+
+    fn commit<'s>(
+        &'r self,
+        author: &Self::Signature<'s>,
+        committer: &Self::Signature<'s>,
+        message: &str,
+        tree: &Self::Tree,
+        parents: &[&Self::Commit],
+    ) -> error::Result<Self::Oid, Self::InnerError> {
+        let oid = self.next_oid();
+        let commit = TestCommit {
+            oid: oid.clone(),
+            author: author.to_string(),
+            committer: committer.to_string(),
+            message: message.to_owned(),
+            tree: tree.oid.clone(),
+            parents: parents.iter().map(|c| c.oid.clone()).collect(),
+        };
+        self.objects
+            .write()
+            .expect("Could not write object")
+            .insert(TestObject::Commit(commit));
+        Ok(oid)
+    }
+
+    fn empty_tree_builder(&'r self) -> error::Result<Self::TreeBuilder, Self::InnerError> {
+        let objects = self.objects.write().expect("Could not write object");
+        Ok(TestTreeBuilder {
+            objects,
+            oid: self.next_oid(),
+        })
+    }
+
+    fn tree_builder(
+        &'r self,
+        tree: &Self::Tree,
+    ) -> error::Result<Self::TreeBuilder, Self::InnerError> {
+        let objects = self.objects.write().expect("Could not write object");
+        Ok(TestTreeBuilder {
+            objects,
+            oid: tree.oid,
+        })
+    }
+}
+
+impl Base for TestOdb {
+    type Oid = TestOid;
+    type InnerError = TestError;
+}
+
+pub struct TestTreeBuilder<'r> {
+    objects: sync::RwLockWriteGuard<'r, HashSet<TestObject>>,
+    oid: TestOid,
+}
+
+impl tree::Builder for TestTreeBuilder<'_> {
+    type Oid = TestOid;
+    type Error = TestError;
+
+    fn write(mut self) -> Result<Self::Oid, Self::Error> {
+        self.objects.insert(TestObject::Tree(TestTree {
+            oid: self.oid.clone(),
+        }));
+        Ok(self.oid)
+    }
+}
 
 #[derive(Clone, Debug)]
 pub enum TestObject {
