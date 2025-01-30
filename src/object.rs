@@ -134,3 +134,6 @@ impl<'r> Database<'r> for git2::Repository {
             .wrap_with_kind(error::Kind::CannotCreateTreeBuilder)
     }
 }
+
+#[cfg(test)]
+pub mod tests;
