@@ -35,8 +35,18 @@ impl Base for git2::Repository {
 pub(crate) mod tests {
     use super::*;
 
-    #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+    #[derive(Copy, Clone, Default, Debug, PartialEq, Eq, Hash)]
     pub struct TestOid([u8; 20]);
+
+    impl std::ops::AddAssign<u8> for TestOid {
+        fn add_assign(&mut self, rhs: u8) {
+            self.0.iter_mut().rev().fold(rhs, |c, n| {
+                let [h, l] = (c as u16 + *n as u16).to_be_bytes();
+                *n = l;
+                h
+            });
+        }
+    }
 
     impl fmt::Display for TestOid {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
