@@ -35,7 +35,7 @@ impl Base for git2::Repository {
 pub(crate) mod tests {
     use super::*;
 
-    #[derive(Copy, Clone, Default, Debug, PartialEq, Eq, Hash)]
+    #[derive(Copy, Clone, Default, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub struct TestOid([u8; 20]);
 
     impl std::ops::AddAssign<u8> for TestOid {
@@ -72,5 +72,14 @@ pub(crate) mod tests {
         fn eq(&self, other: &&str) -> bool {
             other.parse().map(|i: Self| self == &i).unwrap_or(false)
         }
+    }
+
+    #[test]
+    fn test_oid_incremental_order() {
+        let mut id = TestOid::default();
+        id += 1; // id = [1, 0, 0, ...]
+        let one = id.clone();
+        id += 255; // id = [0, 1, 0, ...]
+        assert!(one < id);
     }
 }
