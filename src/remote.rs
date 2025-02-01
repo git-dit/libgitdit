@@ -25,6 +25,11 @@ pub trait Names {
 
     /// Get an [Iterator] over all remotes' names
     fn names(&self) -> Self::NameIter<'_>;
+
+    /// Get an [Iterator] over all remotes' ref paths
+    fn ref_paths(&self) -> impl Iterator<Item = Result<String, Utf8Error>> {
+        self.names().map(|n| n.ref_path())
+    }
 }
 
 impl Names for git2::string_array::StringArray {
@@ -32,6 +37,17 @@ impl Names for git2::string_array::StringArray {
 
     fn names(&self) -> Self::NameIter<'_> {
         self.iter_bytes()
+    }
+}
+
+impl Names for Vec<String> {
+    type NameIter<'n>
+        = std::iter::Map<std::slice::Iter<'n, String>, fn(&String) -> &[u8]>
+    where
+        Self: 'n;
+
+    fn names(&self) -> Self::NameIter<'_> {
+        self.iter().map(AsRef::as_ref)
     }
 }
 
@@ -86,4 +102,31 @@ impl<'r> RemoteExt for Remote<'r> {
     }
 }
 
-const REMOTES_REF_BASE: &str = "refs/remotes/";
+const REMOTES_REF_BASE: &str = "refs/remotes";
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn name_as_str() {
+        assert_eq!(b"foo".as_slice().as_str(), Ok("foo"));
+    }
+
+    #[test]
+    fn name_ref_path() {
+        assert_eq!(
+            b"foo".as_slice().ref_path(),
+            Ok("refs/remotes/foo".to_owned()),
+        );
+    }
+
+    #[test]
+    fn names_ref_paths() {
+        let paths = vec!["foo".to_owned(), "bar".to_owned()]
+            .ref_paths()
+            .collect::<Result<Vec<_>, _>>()
+            .expect("Could not retrieve paths");
+        assert_eq!(paths, ["refs/remotes/foo", "refs/remotes/bar"]);
+    }
+}
