@@ -134,6 +134,12 @@ where
         self
     }
 
+    /// Add a single parent for the commit
+    pub fn with_parent(mut self, parent: R::Commit) -> Self {
+        self.parents.push(parent);
+        self
+    }
+
     /// Build a [Commit] with a commit message
     pub fn build(self, message: &str) -> error::Result<F::Output, R::InnerError> {
         let parents: Vec<_> = self.parents.iter().collect();
