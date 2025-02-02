@@ -18,16 +18,12 @@ pub trait Base {
     /// Type used for representing Object IDs
     type Oid: Clone + fmt::Debug + fmt::Display + Eq + Hash;
 
-    /// Type used for representing references
-    type Reference<'a>;
-
     /// (Inner) error type associated with this entity
-    type InnerError: for<'a> error::InnerError<Oid = Self::Oid, Reference<'a> = Self::Reference<'a>>;
+    type InnerError: error::InnerError<Oid = Self::Oid>;
 }
 
 impl Base for git2::Repository {
     type Oid = git2::Oid;
-    type Reference<'a> = git2::Reference<'a>;
     type InnerError = git2::Error;
 }
 

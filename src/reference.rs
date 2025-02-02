@@ -9,6 +9,96 @@
 use std::error::Error;
 use std::path::Path;
 
+use crate::base::Base;
+use crate::error::{self, InnerError, ResultExt};
+use crate::remote;
+
+/// Some entity that stores [Reference]s
+pub trait Store<'r>: Base {
+    /// Type used for representing references
+    type Reference: Reference<
+        Oid = Self::Oid,
+        Name: ToOwned<Owned = <<Self as Base>::InnerError as InnerError>::RefName>,
+        Error: Into<error::Inner<Self::InnerError>>,
+    >;
+
+    /// Type for a basic [Iterator] of [Reference]s
+    type References: IntoIterator<Item = Result<Self::Reference, Self::InnerError>>;
+
+    /// Container for remote references' names
+    type RemoteNames: remote::Names;
+
+    /// Retrieve a specific reference
+    fn get_reference(
+        &'r self,
+        path: &Path,
+    ) -> error::Result<Option<Self::Reference>, Self::InnerError>;
+
+    /// Retrieve a subset of all [Reference]s in this store
+    fn references(&'r self, prefix: &Path) -> error::Result<Self::References, Self::InnerError>;
+
+    /// Update or create a new [Reference]
+    fn set_reference(
+        &'r self,
+        name: &Path,
+        target: Self::Oid,
+        overwrite: bool,
+        reflog_msg: &str,
+    ) -> error::Result<Self::Reference, Self::InnerError>;
+
+    /// Retrieve all git remote references' names
+    fn remote_names(&self) -> error::Result<Self::RemoteNames, Self::InnerError>;
+
+    /// Retrieve all git remote references' ref paths
+    fn remote_ref_paths(&self) -> error::Result<Vec<String>, Self::InnerError> {
+        use remote::Names;
+
+        self.remote_names()?
+            .ref_paths()
+            .map(|n| n.wrap_with_kind(error::Kind::ReferenceNameError))
+            .collect()
+    }
+}
+
+impl<'r> Store<'r> for git2::Repository {
+    type Reference = git2::Reference<'r>;
+    type References = git2::References<'r>;
+    type RemoteNames = git2::string_array::StringArray;
+
+    fn get_reference(
+        &'r self,
+        path: &Path,
+    ) -> error::Result<Option<Self::Reference>, Self::InnerError> {
+        let name = path.to_str().ok_or(error::Kind::CannotGetReference)?;
+        match self.find_reference(name).map(Some) {
+            Err(err) if err.code() == git2::ErrorCode::NotFound => Ok(None),
+            err => err.wrap_with_kind(error::Kind::CannotGetReference),
+        }
+    }
+
+    fn references(&'r self, prefix: &Path) -> error::Result<Self::References, Self::InnerError> {
+        let glob = format!("{}/**", prefix.display());
+        self.references_glob(glob.as_ref())
+            .wrap_with_kind(error::Kind::CannotGetReferences(glob))
+    }
+
+    fn set_reference(
+        &'r self,
+        name: &Path,
+        target: Self::Oid,
+        overwrite: bool,
+        reflog_msg: &str,
+    ) -> error::Result<Self::Reference, Self::InnerError> {
+        let path = name.to_str().ok_or(error::Kind::ReferenceNameError)?;
+        self.reference(path, target, overwrite, reflog_msg)
+            .wrap_with(|| error::Kind::CannotSetReference(path.to_owned()))
+    }
+
+    fn remote_names(&self) -> error::Result<Self::RemoteNames, Self::InnerError> {
+        self.remotes().wrap_with_kind(error::Kind::CannotGetRemotes)
+    }
+}
+
 /// A git reference
 pub trait Reference {
     /// Type for reference names
@@ -104,12 +194,82 @@ pub(crate) const LEAF_COMPONENT: &str = "leaves";
 pub(crate) mod tests {
     use super::*;
 
+    use std::collections::BTreeSet;
+    use std::path::PathBuf;
+
     use crate::base::tests::TestOid;
     use crate::error::tests::TestError;
 
+    #[derive(Default)]
+    pub struct TestStore {
+        refs: std::sync::Mutex<BTreeSet<TestRef>>,
+        remotes: Vec<String>,
+    }
+
+    impl<'r> Store<'r> for TestStore {
+        type Reference = TestRef;
+        type References = Vec<Result<TestRef, TestError>>;
+        type RemoteNames = Vec<String>;
+
+        fn get_reference(
+            &'r self,
+            path: &Path,
+        ) -> error::Result<Option<Self::Reference>, Self::InnerError> {
+            Ok(self
+                .refs
+                .lock()
+                .expect("Could not access refs")
+                .get(path)
+                .cloned())
+        }
+
+        fn references(
+            &'r self,
+            prefix: &Path,
+        ) -> error::Result<Self::References, Self::InnerError> {
+            let res = self
+                .refs
+                .lock()
+                .expect("Could not access refs")
+                .iter()
+                .filter(|r| r.name.starts_with(prefix))
+                .cloned()
+                .map(Ok)
+                .collect();
+            Ok(res)
+        }
+
+        fn set_reference(
+            &'r self,
+            name: &Path,
+            target: Self::Oid,
+            overwrite: bool,
+            _reflog_msg: &str,
+        ) -> error::Result<Self::Reference, Self::InnerError> {
+            let new = TestRef::from(name.to_owned()).with_target(target);
+            let mut refs = self.refs.lock().expect("Could not access refs");
+            if overwrite {
+                refs.replace(new.clone());
+            } else {
+                refs.insert(new.clone());
+            }
+
+            Ok(new)
+        }
+
+        fn remote_names(&self) -> error::Result<Self::RemoteNames, Self::InnerError> {
+            Ok(self.remotes.clone())
+        }
+    }
+
+    impl Base for TestStore {
+        type Oid = TestOid;
+        type InnerError = TestError;
+    }
+
     #[derive(Clone, Debug)]
     pub struct TestRef {
-        name: std::path::PathBuf,
+        name: PathBuf,
         target: Option<TestOid>,
     }
 
@@ -122,12 +282,41 @@ pub(crate) mod tests {
         }
     }
 
+    impl From<PathBuf> for TestRef {
+        fn from(name: PathBuf) -> Self {
+            Self { name, target: None }
+        }
+    }
+
     impl From<&str> for TestRef {
         fn from(path: &str) -> Self {
-            Self {
-                name: path.into(),
-                target: None,
-            }
+            PathBuf::from(path).into()
+        }
+    }
+
+    impl std::borrow::Borrow<Path> for TestRef {
+        fn borrow(&self) -> &Path {
+            &self.name
+        }
+    }
+
+    impl Eq for TestRef {}
+
+    impl PartialEq for TestRef {
+        fn eq(&self, other: &Self) -> bool {
+            PartialEq::eq(&self.name, &other.name)
+        }
+    }
+
+    impl Ord for TestRef {
+        fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+            Ord::cmp(&self.name, &other.name)
+        }
+    }
+
+    impl PartialOrd for TestRef {
+        fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+            PartialOrd::partial_cmp(&self.name, &other.name)
         }
     }
 

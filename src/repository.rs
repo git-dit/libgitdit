@@ -17,7 +17,6 @@ use std::collections::HashSet;
 
 use git2::{self, Commit, Tree};
 
-use crate::base::Base;
 use crate::error;
 use crate::reference;
 use crate::traversal::Traversible;
@@ -39,7 +38,7 @@ pub type UniqueIssues<'r, R> = HashSet<Issue<'r, R>>;
 /// This trait is intended as an extension for repositories. It introduces
 /// utility functions for dealing with issues, e.g. for retrieving references
 /// for issues, creating messages and finding the initial message of an issue.
-pub trait RepositoryExt<'r>: Base + Sized {
+pub trait RepositoryExt<'r>: reference::Store<'r> + Sized {
     /// Retrieve an issue
     ///
     /// Returns the issue with a given id.
@@ -50,7 +49,7 @@ pub trait RepositoryExt<'r>: Base + Sized {
     /// Returns the issue associated with a head reference.
     fn issue_by_head_ref(
         &'r self,
-        head_ref: &Self::Reference<'_>,
+        head_ref: &Self::Reference,
     ) -> Result<Issue<'r, Self>, Self::InnerError>;
 
     /// Find the issue with a given message in it
@@ -120,7 +119,7 @@ impl<'r> RepositoryExt<'r> for git2::Repository {
 
     fn issue_by_head_ref(
         &'r self,
-        head_ref: &Self::Reference<'_>,
+        head_ref: &Self::Reference,
     ) -> Result<Issue<'r, Self>, Self::InnerError> {
         use reference::Reference;
 
