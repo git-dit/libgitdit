@@ -43,6 +43,7 @@ pub mod error;
 pub mod gc;
 pub mod issue;
 pub mod iter;
+pub mod object;
 pub mod reference;
 pub mod remote;
 pub mod repository;
