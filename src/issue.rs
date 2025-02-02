@@ -12,7 +12,6 @@
 //! This module provides the `Issue` type and related functionality.
 //!
 
-use git2::{self, Commit, Oid, Reference, References};
 use std::fmt::{self, Write};
 use std::hash;
 
