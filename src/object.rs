@@ -46,7 +46,7 @@ pub trait Database<'r>: Base {
         follow_up: F,
     ) -> error::Result<commit::Builder<'r, 'c, Self, F>, Self::InnerError>
     where
-        F: commit::FollowUp<Self>,
+        F: commit::FollowUp<'r, Self>,
         Self: Sized,
         'r: 'c,
     {
