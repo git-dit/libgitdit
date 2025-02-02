@@ -210,19 +210,22 @@ impl<'r> RepositoryExt<'r> for git2::Repository {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use test_utils::{TestingRepo, empty_tree};
 
-    // RepositoryExt tests
+    use crate::object::tests::TestOdb;
+    use crate::reference::tests::TestStore;
+
+    type TestRepo = (TestStore, TestOdb);
+
+    impl RepositoryExt<'_> for TestRepo {}
 
     #[test]
     fn find_issue() {
-        let mut testing_repo = TestingRepo::new("find_issue");
-        let repo = testing_repo.repo();
+        let repo = TestRepo::default();
 
-        let sig = git2::Signature::now("Foo Bar", "foo.bar@example.com")
-            .expect("Could not create signature");
         let issue = repo
-            .create_issue(&sig, &sig, "Test message 1", &empty_tree(repo), vec![])
+            .issue_builder()
+            .expect("Could not create issue builder")
+            .build("Test message 1")
             .expect("Could not create issue");
 
         repo.find_issue(issue.id().clone())
@@ -231,13 +234,12 @@ mod tests {
 
     #[test]
     fn issue_by_head_ref() {
-        let mut testing_repo = TestingRepo::new("issue_by_head_ref");
-        let repo = testing_repo.repo();
+        let repo = TestRepo::default();
 
-        let sig = git2::Signature::now("Foo Bar", "foo.bar@example.com")
-            .expect("Could not create signature");
         let issue = repo
-            .create_issue(&sig, &sig, "Test message 1", &empty_tree(repo), vec![])
+            .issue_builder()
+            .expect("Could not create issue builder")
+            .build("Test message 1")
             .expect("Could not create issue");
 
         let local_head = issue
@@ -252,37 +254,37 @@ mod tests {
 
     #[test]
     fn issue_with_message() {
-        let mut testing_repo = TestingRepo::new("issue_with_message");
-        let repo = testing_repo.repo();
+        let repo = TestRepo::default();
 
-        let sig = git2::Signature::now("Foo Bar", "foo.bar@example.com")
-            .expect("Could not create signature");
-        let empty_tree = empty_tree(repo);
         let issue = repo
-            .create_issue(&sig, &sig, "Test message 1", &empty_tree, vec![])
+            .issue_builder()
+            .expect("Could not create issue builder")
+            .build("Test message 1")
             .expect("Could not create issue");
         let initial_message = issue
             .initial_message()
             .expect("Could not retrieve initial message");
         let message = issue
-            .add_message(&sig, &sig, "Test message 2", &empty_tree, vec![&initial_message])
+            .message_builder()
+            .expect("Could not create builder")
+            .with_parent(initial_message.clone())
+            .build("Test message 2")
             .expect("Could not add message");
 
         let retrieved_issue = repo
-            .issue_with_message(message.id())
+            .issue_with_message(message)
             .expect("Could not retrieve issue");
         assert_eq!(retrieved_issue.id(), issue.id());
     }
 
     #[test]
     fn issues() {
-        let mut testing_repo = TestingRepo::new("issues");
-        let repo = testing_repo.repo();
+        let repo = TestRepo::default();
 
-        let sig = git2::Signature::now("Foo Bar", "foo.bar@example.com")
-            .expect("Could not create signature");
         let issue = repo
-            .create_issue(&sig, &sig, "Test message 1", &empty_tree(repo), vec![])
+            .issue_builder()
+            .expect("Could not create issue builder")
+            .build("Test message 1")
             .expect("Could not create issue");
 
         let mut issues = repo
@@ -298,30 +300,31 @@ mod tests {
 
     #[test]
     fn first_parent_messages() {
-        let mut testing_repo = TestingRepo::new("first_parent_revwalk");
-        let repo = testing_repo.repo();
+        let repo = TestRepo::default();
 
-        let sig = git2::Signature::now("Foo Bar", "foo.bar@example.com")
-            .expect("Could not create signature");
-        let empty_tree = empty_tree(repo);
         let issue = repo
-            .create_issue(&sig, &sig, "Test message 1", &empty_tree, vec![])
+            .issue_builder()
+            .expect("Could not create issue builder")
+            .build("Test message 1")
             .expect("Could not create issue");
         let initial_message = issue
             .initial_message()
             .expect("Could not retrieve initial message");
         let message = issue
-            .add_message(&sig, &sig, "Test message 2", &empty_tree, vec![&initial_message])
+            .message_builder()
+            .expect("Could not create builder")
+            .with_parent(initial_message.clone())
+            .build("Test message 2")
             .expect("Could not add message");
 
         let mut iter = repo
-            .first_parent_messages(message.id())
+            .first_parent_messages(message)
             .expect("Could not create first parent iterator");
         let mut current_id = iter
             .next()
             .expect("No more messages")
             .expect("Could not retrieve message");
-        assert_eq!(current_id, message.id());
+        assert_eq!(current_id, message);
 
         current_id = iter
             .next()
