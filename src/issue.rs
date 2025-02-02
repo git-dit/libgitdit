@@ -371,41 +371,47 @@ pub(crate) const DIT_REF_PART: &str = "dit";
 #[cfg(test)]
 mod tests {
     use super::*;
-    use test_utils::{TestingRepo, empty_tree};
 
-    use repository::RepositoryExt;
+    use object::commit::Commit;
+    use object::tests::TestOdb;
+    use reference::tests::TestStore;
+    use reference::Reference;
+
+    type TestRepo = (TestStore, TestOdb);
 
     #[test]
     fn issue_leaves() {
-        use reference::{Reference, References};
+        use reference::References;
 
-        let mut testing_repo = TestingRepo::new("issue_leaves");
-        let repo = testing_repo.repo();
-
-        let sig = git2::Signature::now("Foo Bar", "foo.bar@example.com")
-            .expect("Could not create signature");
-        let empty_tree = empty_tree(repo);
+        let repo = TestRepo::default();
 
         {
             // messages we're not supposed to see
-            let issue = repo
-                .create_issue(&sig, &sig, "Test message 1", &empty_tree, vec![])
-                .expect("Could not create issue");
-            let initial_message = issue
-                .initial_message()
-                .expect("Could not retrieve initial message");
-            issue.add_message(&sig, &sig, "Test message 2", &empty_tree, vec![&initial_message])
+            let initial_message = repo
+                .commit_builder(TestRepo::find_commit)
+                .expect("Cannot create commit builder")
+                .build("Test message 1")
+                .expect("Cannot create commit");
+            let issue = Issue::new_unchecked(&repo, initial_message.id());
+            issue
+                .message_builder()
+                .expect("Could not create builder")
+                .with_parent(initial_message.clone())
+                .build("Test message 2")
                 .expect("Could not add message");
         }
 
-        let issue = repo
-            .create_issue(&sig, &sig, "Test message 3", &empty_tree, vec![])
-            .expect("Could not create issue");
-        let initial_message = issue
-            .initial_message()
-            .expect("Could not retrieve initial message");
+        let initial_message = repo
+            .commit_builder(TestRepo::find_commit)
+            .expect("Cannot create commit builder")
+            .build("Test message 1")
+            .expect("Cannot create commit");
+        let issue = Issue::new_unchecked(&repo, initial_message.id());
         let message = issue
-            .add_message(&sig, &sig, "Test message 4", &empty_tree, vec![&initial_message])
+            .message_builder()
+            .expect("Could not create builder")
+            .with_parent(initial_message.clone())
+            .build("Test message 4")
             .expect("Could not add message");
 
         let mut leaves = issue
@@ -418,46 +424,55 @@ mod tests {
             .expect("Could not retrieve leaf reference")
             .target()
             .expect("Could not determine the target of the leaf reference");
-        assert_eq!(leaf, message.id());
+        assert_eq!(leaf, message);
         assert!(leaves.next().is_none());
     }
 
     #[test]
     fn local_refs() {
-        let mut testing_repo = TestingRepo::new("local_refs");
-        let repo = testing_repo.repo();
-
-        let sig = git2::Signature::now("Foo Bar", "foo.bar@example.com")
-            .expect("Could not create signature");
-        let empty_tree = empty_tree(repo);
+        let repo = TestRepo::default();
 
         {
             // messages we're not supposed to see
-            let issue = repo
-                .create_issue(&sig, &sig, "Test message 1", &empty_tree, vec![])
-                .expect("Could not create issue");
-            let initial_message = issue
-                .initial_message()
-                .expect("Could not retrieve initial message");
-            issue.add_message(&sig, &sig, "Test message 3", &empty_tree, vec![&initial_message])
+            let initial_message = repo
+                .commit_builder(TestRepo::find_commit)
+                .expect("Cannot create commit builder")
+                .build("Test message 1")
+                .expect("Cannot create commit");
+            let issue = Issue::new_unchecked(&repo, initial_message.id());
+            issue
+                .update_head(initial_message.id(), true)
+                .expect("Could not update head");
+            issue
+                .message_builder()
+                .expect("Could not create builder")
+                .with_parent(initial_message.clone())
+                .build("Test message 2")
                 .expect("Could not add message");
         }
 
-        let issue = repo
-            .create_issue(&sig, &sig, "Test message 2", &empty_tree, vec![])
-            .expect("Could not create issue");
-        let initial_message = issue
-            .initial_message()
-            .expect("Could not retrieve initial message");
+        let initial_message = repo
+            .commit_builder(TestRepo::find_commit)
+            .expect("Cannot create commit builder")
+            .build("Test message 2")
+            .expect("Cannot create commit");
+        let issue = Issue::new_unchecked(&repo, initial_message.id());
+        issue
+            .update_head(initial_message.id(), true)
+            .expect("Could not update head");
         let message = issue
-            .add_message(&sig, &sig, "Test message 3", &empty_tree, vec![&initial_message])
+            .message_builder()
+            .expect("Could not create builder")
+            .with_parent(initial_message.clone())
+            .build("Test message 3")
             .expect("Could not add message");
 
-        let mut ids = vec![issue.id().clone(), message.id()];
+        let mut ids = vec![issue.id().clone(), message];
         ids.sort();
         let mut ref_ids: Vec<_> = issue
             .local_refs()
             .expect("Could not retrieve local refs")
+            .into_iter()
             .map(|reference| reference.unwrap().target().unwrap())
             .collect();
         ref_ids.sort();
@@ -466,30 +481,34 @@ mod tests {
 
     #[test]
     fn message_revwalk() {
-        let mut testing_repo = TestingRepo::new("message_revwalk");
-        let repo = testing_repo.repo();
+        let repo = TestRepo::default();
 
-        let sig = git2::Signature::now("Foo Bar", "foo.bar@example.com")
-            .expect("Could not create signature");
-        let empty_tree = empty_tree(repo);
+        let initial_message1 = repo
+            .commit_builder(TestRepo::find_commit)
+            .expect("Cannot create commit builder")
+            .build("Test message 1")
+            .expect("Cannot create commit");
+        let issue1 = Issue::new_unchecked(&repo, initial_message1.id());
+        issue1
+            .update_head(initial_message1.id(), true)
+            .expect("Could not update head");
 
-        let issue1 = repo
-            .create_issue(&sig, &sig, "Test message 1", &empty_tree, vec![])
-            .expect("Could not create issue");
-        let initial_message1 = issue1
-            .initial_message()
-            .expect("Could not retrieve initial message");
-
-        let issue2 = repo
-            .create_issue(&sig, &sig, "Test message 2", &empty_tree, vec![&initial_message1])
-            .expect("Could not create issue");
-        let initial_message2 = issue2
-            .initial_message()
-            .expect("Could not retrieve initial message");
+        let initial_message2 = repo
+            .commit_builder(TestRepo::find_commit)
+            .expect("Cannot create commit builder")
+            .with_parent(initial_message1)
+            .build("Test message 1")
+            .expect("Cannot create commit");
+        let issue2 = Issue::new_unchecked(&repo, initial_message2.id());
+        issue2
+            .update_head(initial_message2.id(), true)
+            .expect("Could not update head");
         let message = issue2
-            .add_message(&sig, &sig, "Test message 3", &empty_tree, vec![&initial_message2])
+            .message_builder()
+            .expect("Could not create builder")
+            .with_parent(initial_message2.clone())
+            .build("Test message 3")
             .expect("Could not add message");
-        let message_id = message.id();
 
         let mut iter1 = issue1
             .messages()
@@ -508,7 +527,7 @@ mod tests {
             .next()
             .expect("No more messages")
             .expect("Could not retrieve message");
-        assert_eq!(current_id, message_id);
+        assert_eq!(current_id, message);
 
         current_id = iter2
             .next()
@@ -521,21 +540,23 @@ mod tests {
 
     #[test]
     fn update_head() {
-        let mut testing_repo = TestingRepo::new("update_head");
-        let repo = testing_repo.repo();
+        let repo = TestRepo::default();
 
-        let sig = git2::Signature::now("Foo Bar", "foo.bar@example.com")
-            .expect("Could not create signature");
-        let empty_tree = empty_tree(repo);
+        let initial_message = repo
+            .commit_builder(TestRepo::find_commit)
+            .expect("Cannot create commit builder")
+            .build("Test message 2")
+            .expect("Cannot create commit");
+        let issue = Issue::new_unchecked(&repo, initial_message.id());
+        issue
+            .update_head(initial_message.id(), true)
+            .expect("Could not update head");
 
-        let issue = repo
-            .create_issue(&sig, &sig, "Test message 2", &empty_tree, vec![])
-            .expect("Could not create issue");
-        let initial_message = issue
-            .initial_message()
-            .expect("Could not retrieve initial message");
         let message = issue
-            .add_message(&sig, &sig, "Test message 3", &empty_tree, vec![&initial_message])
+            .message_builder()
+            .expect("Could not create builder")
+            .with_parent(initial_message.clone())
+            .build("Test message 3")
             .expect("Could not add message");
 
         let mut local_head = issue
@@ -547,7 +568,7 @@ mod tests {
         assert_eq!(&local_head, issue.id());
 
         issue
-            .update_head(message.id(), true)
+            .update_head(message, true)
             .expect("Could not update head reference");
         local_head = issue
             .local_head()
@@ -555,7 +576,7 @@ mod tests {
             .expect("No local head found")
             .target()
             .expect("Could not get target of local head");
-        assert_eq!(local_head, message.id());
+        assert_eq!(local_head, message);
     }
 }
 
