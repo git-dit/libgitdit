@@ -250,6 +250,28 @@ impl<'r, R: Database<'r>> Issue<'r, R> {
 }
 
 impl<'r, R: Database<'r> + Traversible<'r>> Issue<'r, R> {
+    /// Get all messages of the issue
+    pub fn messages(
+        &self,
+    ) -> error::Result<<R::TraversalBuilder as TraversalBuilder>::Iter, R::InnerError>
+    where
+        R: reference::Store<'r>,
+    {
+        use reference::Reference;
+
+        self.all_refs()?
+            .map(|r| r.wrap_with_kind(error::Kind::CannotGetReference))
+            .filter_map(|r| r.map(|r| r.target()).transpose())
+            .try_fold(self.terminated_messages()?, |m, r| {
+                m.with_head(r?)
+                    .map_err(Into::into)
+                    .wrap_with_kind(error::Kind::CannotConstructRevwalk)
+            })?
+            .build()
+            .map_err(Into::into)
+            .wrap_with_kind(error::Kind::CannotConstructRevwalk)
+    }
+
     /// Get messages of the issue starting from a specific one
     ///
     /// The [Iterator] returned will return all first parents up to and
@@ -278,19 +300,6 @@ impl<'r, R: Database<'r> + Traversible<'r>> Issue<'r, R> {
 }
 
 impl<'r> Issue<'r, git2::Repository> {
-    /// Get all messages of the issue
-    pub fn messages(&self) -> Result<git2::Revwalk<'r>, git2::Error> {
-        self.all_refs()?
-            .map(|m| m?.peel(git2::ObjectType::Commit))
-            .map(|m| m.wrap_with_kind(EK::CannotGetReference))
-            .try_fold(self.terminated_messages()?, |b, m| {
-                b.with_head(m?.id())
-                    .wrap_with_kind(EK::CannotConstructRevwalk)
-            })?
-            .build()
-            .wrap_with_kind(EK::CannotConstructRevwalk)
-    }
-
     /// Add a new message to the issue
     ///
     /// Adds a new message to the issue. Also create a leaf reference for the
