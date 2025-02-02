@@ -455,7 +455,7 @@ mod tests {
 
         let mut ids = vec![issue.id().clone(), message.id()];
         ids.sort();
-        let mut ref_ids: Vec<Oid> = issue
+        let mut ref_ids: Vec<_> = issue
             .local_refs()
             .expect("Could not retrieve local refs")
             .map(|reference| reference.unwrap().target().unwrap())
