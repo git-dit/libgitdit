@@ -128,7 +128,7 @@ where
         Self { tree, ..self }
     }
 
-    /// Set the parents for the commit
+    /// Add parents for the commit
     pub fn with_parents(mut self, parents: impl IntoIterator<Item = R::Commit>) -> Self {
         self.parents.extend(parents);
         self
