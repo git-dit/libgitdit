@@ -248,6 +248,24 @@ impl<'r, R: Database<'r>> Issue<'r, R> {
         self.repo().find_commit(self.id().clone())
     }
 
+    /// Create a [commit::Builder] for messages for this issue
+    ///
+    /// The builder will be configured to add a new leaf reference pointing to
+    /// the new message.
+    pub fn message_builder<'c>(
+        &self,
+    ) -> error::Result<
+        commit::Builder<'r, 'c, R, impl commit::FollowUp<'r, R, Output = R::Oid> + '_>,
+        R::InnerError,
+    >
+    where
+        R: reference::Store<'r>,
+        'r: 'c,
+    {
+        self.repo()
+            .commit_builder(move |_, o: R::Oid| self.add_leaf(o.clone()).map(|_| o))
+    }
+
     /// Add a new message to the issue
     ///
     /// Adds a new message to the issue. Also create a leaf reference for the
