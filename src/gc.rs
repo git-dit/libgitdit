@@ -230,78 +230,103 @@ type RefResult<'r, R> = std::result::Result<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use test_utils::{TestingRepo, empty_tree};
 
-    use repository::RepositoryExt;
+    use object::commit::Commit;
+    use object::tests::TestOdb;
+    use object::Database;
+    use reference::tests::TestStore;
+    use reference::Reference;
 
-    // CollectableRefs tests
+    type TestRepo = (TestStore, TestOdb);
 
     #[test]
     fn collectable_leaves() {
-        let mut testing_repo = TestingRepo::new("collectable_leaves");
-        let repo = testing_repo.repo();
-
-        let sig = git2::Signature::now("Foo Bar", "foo.bar@example.com")
-            .expect("Could not create signature");
-        let empty_tree = empty_tree(repo);
+        let repo = TestRepo::default();
 
         let mut refs_to_collect = Vec::new();
         let mut issues = Vec::new();
 
         {
             // issue not supposed to be affected
-            let issue = repo
-                .create_issue(&sig, &sig, "Test message 1", &empty_tree, vec![])
-                .expect("Could not create issue");
-            let initial_message = issue
-                .initial_message()
-                .expect("Could not retrieve initial message");
-            issue.add_message(&sig, &sig, "Test message 2", &empty_tree, vec![&initial_message])
-                .expect("Could not add message");
-        }
-
-        {
-            let issue = repo
-                .create_issue(&sig, &sig, "Test message 3", &empty_tree, vec![])
-                .expect("Could not create issue");
-            let initial_message = issue
-                .initial_message()
-                .expect("Could not retrieve initial message");
-            let message = issue
-                .add_message(&sig, &sig, "Test message 4", &empty_tree, vec![&initial_message])
-                .expect("Could not add message");
-            issue.update_head(message.id(), true).expect("Could not update head");
-            issues.push(issue);
-            refs_to_collect.push(message.id());
-        }
-
-        {
-            let issue = repo
-                .create_issue(&sig, &sig, "Test message 5", &empty_tree, vec![])
-                .expect("Could not create issue");
-            let initial_message = issue
-                .initial_message()
-                .expect("Could not retrieve initial message");
-            let message1 = issue
-                .add_message(&sig, &sig, "Test message 6", &empty_tree, vec![&initial_message])
-                .expect("Could not add message");
+            let initial_message = repo
+                .commit_builder(Database::find_commit)
+                .expect("Cannot create commit builder")
+                .build("Test message 1")
+                .expect("Cannot create commit");
+            let issue = Issue::new_unchecked(&repo, initial_message.id());
             issue
-                .add_message(&sig, &sig, "Test message 7", &empty_tree, vec![&message1])
+                .update_head(initial_message.id(), true)
+                .expect("Could not update head");
+            issue
+                .message_builder()
+                .expect("Could not create builder")
+                .with_parent(initial_message.clone())
+                .build("Test message 2")
+                .expect("Could not add message");
+        }
+
+        {
+            let initial_message = repo
+                .commit_builder(Database::find_commit)
+                .expect("Cannot create commit builder")
+                .build("Test message 3")
+                .expect("Cannot create commit");
+            let issue = Issue::new_unchecked(&repo, initial_message.id());
+            issue
+                .update_head(initial_message.id(), true)
+                .expect("Could not update head");
+            let message = issue
+                .message_builder()
+                .expect("Could not create builder")
+                .with_parent(initial_message.clone())
+                .build("Test message 4")
+                .expect("Could not add message");
+            issue.update_head(message, true).expect("Could not update head");
+            issues.push(issue);
+            refs_to_collect.push(message);
+        }
+
+        {
+            let initial_message = repo
+                .commit_builder(Database::find_commit)
+                .expect("Cannot create commit builder")
+                .build("Test message 5")
+                .expect("Cannot create commit");
+            let issue = Issue::new_unchecked(&repo, initial_message.id());
+            issue
+                .update_head(initial_message.id(), true)
+                .expect("Could not update head");
+            let message1_id = issue
+                .message_builder()
+                .expect("Could not create builder")
+                .with_parent(initial_message.clone())
+                .build("Test message 6")
+                .expect("Could not add message");
+            let message1 = repo
+                .find_commit(message1_id)
+                .expect("Could not retrieve message");
+            issue
+                .message_builder()
+                .expect("Could not create builder")
+                .with_parent(message1)
+                .build("Test message 7")
                 .expect("Could not add message");
             issues.push(issue);
-            refs_to_collect.push(message1.id());
+            refs_to_collect.push(message1_id);
         }
 
         refs_to_collect.sort();
 
-        let collectable = CollectableRefs::new(repo).collect_heads(ReferenceCollectionSpec::BackedByRemoteHead);
+        let mut testing_repo = crate::test_utils::TestingRepo::new("collectable_leaves");
+        let collectable = CollectableRefs::new(testing_repo.repo())
+            .collect_heads(ReferenceCollectionSpec::BackedByRemoteHead);
         let mut collected: Vec<_> = issues
             .iter()
             .flat_map(|i| collectable.for_issue(i).expect("Error during discovery of collectable refs"))
             .collect::<std::result::Result<Vec<_>, _>>()
             .expect("Error during collection")
             .into_iter()
-            .map(|r| r.peel(git2::ObjectType::Commit).expect("Could not peel ref").id())
+            .map(|r| r.target().expect("Could not retrieve target"))
             .collect();
         collected.sort();
         assert_eq!(refs_to_collect, collected);
