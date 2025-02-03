@@ -150,6 +150,17 @@ mod tests {
     use crate::error::tests::TestError;
     use crate::object::tests::{TestObject, TestOdb};
 
+    impl<'t, T> Traversible<'t> for (T, TestOdb)
+    where
+        T: Base<Oid = <TestOdb as Base>::Oid, InnerError = <TestOdb as Base>::InnerError>,
+    {
+        type TraversalBuilder = <TestOdb as Traversible<'t>>::TraversalBuilder;
+
+        fn traversal_builder(&'t self) -> error::Result<Self::TraversalBuilder, Self::InnerError> {
+            self.1.traversal_builder()
+        }
+    }
+
     impl<'t> Traversible<'t> for TestOdb {
         type TraversalBuilder = TestTraversal<'t>;
 
