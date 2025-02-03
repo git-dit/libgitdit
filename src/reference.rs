@@ -248,6 +248,43 @@ pub(crate) mod tests {
     use crate::base::tests::TestOid;
     use crate::error::tests::TestError;
 
+    impl<'r, T> Store<'r> for (TestStore, T)
+    where
+        T: Base<Oid = <TestStore as Base>::Oid, InnerError = <TestStore as Base>::InnerError>,
+    {
+        type Reference = <TestStore as Store<'r>>::Reference;
+        type References = <TestStore as Store<'r>>::References;
+        type RemoteNames = <TestStore as Store<'r>>::RemoteNames;
+
+        fn get_reference(
+            &'r self,
+            path: &Path,
+        ) -> error::Result<Option<Self::Reference>, Self::InnerError> {
+            self.0.get_reference(path)
+        }
+
+        fn references(
+            &'r self,
+            prefix: &Path,
+        ) -> error::Result<Self::References, Self::InnerError> {
+            self.0.references(prefix)
+        }
+
+        fn set_reference(
+            &'r self,
+            name: &Path,
+            target: Self::Oid,
+            overwrite: bool,
+            reflog_msg: &str,
+        ) -> error::Result<Self::Reference, Self::InnerError> {
+            self.0.set_reference(name, target, overwrite, reflog_msg)
+        }
+
+        fn remote_names(&self) -> error::Result<Self::RemoteNames, Self::InnerError> {
+            self.0.remote_names()
+        }
+    }
+
     #[derive(Default)]
     pub struct TestStore {
         refs: std::sync::Mutex<BTreeSet<TestRef>>,
