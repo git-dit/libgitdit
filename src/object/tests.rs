@@ -16,6 +16,54 @@ use std::sync;
 use crate::base::tests::TestOid;
 use crate::error::tests::TestError;
 
+impl<'r, T> Database<'r> for (T, TestOdb)
+where
+    T: Base<Oid = <TestOdb as Base>::Oid, InnerError = <TestOdb as Base>::InnerError>,
+{
+    type Commit = <TestOdb as Database<'r>>::Commit;
+    type Tree = <TestOdb as Database<'r>>::Tree;
+    type Signature<'s> = &'s str;
+    type TreeBuilder = <TestOdb as Database<'r>>::TreeBuilder;
+
+    fn author(&self) -> error::Result<Self::Signature<'_>, Self::InnerError> {
+        self.1.author()
+    }
+
+    fn committer(&self) -> error::Result<Self::Signature<'_>, Self::InnerError> {
+        self.1.committer()
+    }
+
+    fn find_commit(&'r self, oid: Self::Oid) -> error::Result<Self::Commit, Self::InnerError> {
+        self.1.find_commit(oid)
+    }
+
+    fn find_tree(&'r self, oid: Self::Oid) -> error::Result<Self::Tree, Self::InnerError> {
+        self.1.find_tree(oid)
+    }
+
+    fn commit<'s>(
+        &'r self,
+        author: &Self::Signature<'s>,
+        committer: &Self::Signature<'s>,
+        message: &str,
+        tree: &Self::Tree,
+        parents: &[&Self::Commit],
+    ) -> error::Result<Self::Oid, Self::InnerError> {
+        self.1.commit(author, committer, message, tree, parents)
+    }
+
+    fn empty_tree_builder(&'r self) -> error::Result<Self::TreeBuilder, Self::InnerError> {
+        self.1.empty_tree_builder()
+    }
+
+    fn tree_builder(
+        &'r self,
+        tree: &Self::Tree,
+    ) -> error::Result<Self::TreeBuilder, Self::InnerError> {
+        self.1.tree_builder(tree)
+    }
+}
+
 #[derive(Default, Debug)]
 pub struct TestOdb {
     objects: sync::RwLock<HashSet<TestObject>>,
