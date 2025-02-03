@@ -22,6 +22,17 @@ pub trait Base {
     type InnerError: error::InnerError<Oid = Self::Oid>;
 }
 
+impl<A, B, O, E> Base for (A, B)
+where
+    A: Base<Oid = O, InnerError = E>,
+    B: Base<Oid = O, InnerError = E>,
+    O: Clone + fmt::Debug + fmt::Display + Eq + Hash,
+    E: error::InnerError<Oid = O>,
+{
+    type Oid = O;
+    type InnerError = E;
+}
+
 impl Base for git2::Repository {
     type Oid = git2::Oid;
     type InnerError = git2::Error;
