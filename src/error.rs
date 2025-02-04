@@ -206,7 +206,7 @@ impl InnerError for git2::Error {
 pub(crate) mod tests {
     use super::*;
 
-    #[derive(Copy, Clone, Debug)]
+    #[derive(Copy, Clone, Debug, PartialEq)]
     pub struct TestError;
 
     impl InnerError for TestError {
