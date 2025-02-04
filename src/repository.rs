@@ -18,6 +18,7 @@ use std::collections::HashSet;
 use git2::{self, Commit, Tree};
 
 use crate::error;
+use crate::object::{self, commit};
 use crate::reference;
 use crate::traversal::Traversible;
 use gc;
@@ -142,6 +143,24 @@ pub trait RepositoryExt<'r>: reference::Store<'r> + Sized {
             Ok::<_, error::Error<Self::InnerError>>(())
         })?;
         Ok(issues)
+    }
+
+    /// Create a builder for issues
+    fn issue_builder<'c>(
+        &'r self,
+    ) -> error::Result<
+        commit::Builder<'r, 'c, Self, impl commit::FollowUp<'r, Self, Output = Issue<'r, Self>>>,
+        Self::InnerError,
+    >
+    where
+        Self: object::Database<'r>,
+        'r: 'c,
+    {
+        self.commit_builder(|r, o: Self::Oid| {
+            let issue = Issue::new_unchecked(r, o.clone());
+            issue.update_head(o, false)?;
+            Ok(issue)
+        })
     }
 
     /// Create a new issue with an initial message
