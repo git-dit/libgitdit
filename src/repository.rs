@@ -15,18 +15,11 @@
 
 use std::collections::HashSet;
 
-use git2::{self, Commit, Tree};
-
-use crate::error;
+use crate::error::{self, ResultExt};
 use crate::object::{self, commit};
 use crate::reference;
 use crate::traversal::Traversible;
-use gc;
 use issue::Issue;
-
-use error::*;
-use error::{Kind as EK};
-
 
 /// Set of unique issues
 pub type UniqueIssues<'r, R> = HashSet<Issue<'r, R>>;
