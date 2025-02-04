@@ -162,50 +162,9 @@ pub trait RepositoryExt<'r>: reference::Store<'r> + Sized {
             Ok(issue)
         })
     }
-
-    /// Create a new issue with an initial message
-    fn create_issue<'a, A, I, J>(
-        &'r self,
-        author: &git2::Signature,
-        committer: &git2::Signature,
-        message: A,
-        tree: &Tree,
-        parents: I,
-    ) -> Result<Issue<'r, Self>, Self::InnerError>
-    where
-        A: AsRef<str>,
-        I: IntoIterator<Item = &'a Commit<'a>, IntoIter = J>,
-        J: Iterator<Item = &'a Commit<'a>>;
 }
 
-impl<'r> RepositoryExt<'r> for git2::Repository {
-    fn create_issue<'a, A, I, J>(
-        &'r self,
-        author: &git2::Signature,
-        committer: &git2::Signature,
-        message: A,
-        tree: &Tree,
-        parents: I,
-    ) -> Result<Issue<'r, Self>, Self::InnerError>
-    where
-        A: AsRef<str>,
-        I: IntoIterator<Item = &'a Commit<'a>, IntoIter = J>,
-        J: Iterator<Item = &'a Commit<'a>>,
-    {
-        let parent_vec : Vec<&Commit> = parents.into_iter().collect();
-
-        self.commit(None, author, committer, message.as_ref(), tree, &parent_vec)
-            .wrap_with_kind(EK::CannotCreateMessage)
-            .and_then(|id| {
-                let issue = Issue::new_unchecked(self, id);
-                issue.update_head(*issue.id(), true)?;
-                Ok(issue)
-            })
-    }
-}
-
-
-
+impl RepositoryExt<'_> for git2::Repository {}
 
 #[cfg(test)]
 mod tests {
