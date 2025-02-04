@@ -79,7 +79,10 @@ pub trait RepositoryExt<'r>: reference::Store<'r> + Sized {
     /// Find the issue with a given message in it
     ///
     /// Returns the issue containing the message provided
-    fn issue_with_message(&'r self, message: Self::Oid) -> Result<Issue<'r, Self>, Self::InnerError>
+    fn issue_with_message(
+        &'r self,
+        message: Self::Oid,
+    ) -> error::Result<Issue<'r, Self>, Self::InnerError>
     where
         Self: Traversible<'r>,
     {
@@ -92,7 +95,7 @@ pub trait RepositoryExt<'r>: reference::Store<'r> + Sized {
             }
         }
 
-        Err(EK::NoTreeInitFound(message).into())
+        Err(error::Kind::NoTreeInitFound(message).into())
     }
 
     /// Get issue hashes for a prefix
