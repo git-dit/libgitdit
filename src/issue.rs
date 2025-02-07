@@ -327,7 +327,8 @@ impl<R: Base> Eq for Issue<'_, R> {}
 
 impl<R: Base> hash::Hash for Issue<'_, R> {
     fn hash<H>(&self, state: &mut H)
-        where H: hash::Hasher
+    where
+        H: hash::Hasher,
     {
         self.id().hash(state);
     }
