@@ -15,16 +15,13 @@
 use git2::{self, Commit, Oid, Reference, References};
 use std::fmt::{self, Write};
 use std::hash;
-use std::result::Result as RResult;
 
 use crate::base::Base;
-use crate::error;
+use crate::error::{self, ResultExt};
 use crate::object::{commit, Database};
 use crate::reference::{self, HEAD_COMPONENT};
 use crate::remote;
 use crate::traversal::{TraversalBuilder, Traversible};
-use error::*;
-use error::Kind as EK;
 
 
 #[derive(PartialEq)]
@@ -47,7 +44,7 @@ impl IssueRefType {
 }
 
 impl fmt::Debug for IssueRefType {
-    fn fmt(&self, f: &mut fmt::Formatter) -> RResult<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         f.write_str(match self {
             &IssueRefType::Any   => "Any ref",
             &IssueRefType::Head  => "Head ref",
@@ -161,7 +158,7 @@ impl<'r, R: reference::Store<'r>> Issue<'r, R> {
     /// all remote repositories.
     pub fn all_remote_refs(
         &self,
-    ) -> error::Result<impl Iterator<Item = RResult<R::Reference, R::InnerError>>, R::InnerError>
+    ) -> error::Result<impl Iterator<Item = Result<R::Reference, R::InnerError>>, R::InnerError>
     {
         use remote::Names;
 
@@ -203,7 +200,7 @@ impl<'r, R: reference::Store<'r>> Issue<'r, R> {
     /// both the local and remote repositories.
     pub fn all_refs(
         &self,
-    ) -> error::Result<impl Iterator<Item = RResult<R::Reference, R::InnerError>>, R::InnerError>
+    ) -> error::Result<impl Iterator<Item = Result<R::Reference, R::InnerError>>, R::InnerError>
     {
         let refs = self
             .local_refs()?
@@ -347,7 +344,7 @@ impl<'r, R: Database<'r> + Traversible<'r>> Issue<'r, R> {
 }
 
 impl<R: Base> fmt::Display for Issue<'_, R> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> RResult<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(f, "{}", self.id())
     }
 }
