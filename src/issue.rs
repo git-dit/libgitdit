@@ -5,12 +5,9 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
-//
-
 //! Issues
 //!
 //! This module provides the `Issue` type and related functionality.
-//!
 
 use std::fmt::{self, Write};
 use std::hash;
@@ -548,4 +545,3 @@ mod tests {
         assert_eq!(local_head, message);
     }
 }
-
