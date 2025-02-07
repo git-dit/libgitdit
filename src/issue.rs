@@ -19,7 +19,7 @@ use std::result::Result as RResult;
 
 use crate::base::Base;
 use crate::error;
-use crate::object::Database;
+use crate::object::{commit, Database};
 use crate::reference::{self, HEAD_COMPONENT};
 use crate::remote;
 use crate::traversal::{TraversalBuilder, Traversible};
@@ -247,6 +247,35 @@ impl<'r, R: Database<'r>> Issue<'r, R> {
     pub fn initial_message(&self) -> error::Result<R::Commit, R::InnerError> {
         self.repo().find_commit(self.id().clone())
     }
+
+    /// Add a new message to the issue
+    ///
+    /// Adds a new message to the issue. Also create a leaf reference for the
+    /// new message. Returns the message.
+    pub fn add_message<'c, I>(
+        &self,
+        author: &R::Signature<'c>,
+        committer: &R::Signature<'c>,
+        message: &str,
+        tree: &R::Tree,
+        parents: I,
+    ) -> error::Result<R::Commit, R::InnerError>
+    where
+        I: IntoIterator<Item = &'c R::Commit>,
+        R: reference::Store<'r>,
+        R::Commit: 'c,
+    {
+        use self::commit::Commit;
+
+        let parents: Vec<_> = std::iter::FromIterator::from_iter(parents);
+
+        let id = self
+            .repo()
+            .commit(author, committer, message, tree, parents.as_ref())?;
+        let res = self.repo().find_commit(id)?;
+        self.add_leaf(res.id())?;
+        Ok(res)
+    }
 }
 
 impl<'r, R: Database<'r> + Traversible<'r>> Issue<'r, R> {
@@ -296,33 +325,6 @@ impl<'r, R: Database<'r> + Traversible<'r>> Issue<'r, R> {
             .with_ends(self.initial_message()?.parent_ids())
             .map_err(Into::into)
             .wrap_with_kind(error::Kind::CannotConstructRevwalk)
-    }
-}
-
-impl<'r> Issue<'r, git2::Repository> {
-    /// Add a new message to the issue
-    ///
-    /// Adds a new message to the issue. Also create a leaf reference for the
-    /// new message. Returns the message.
-    ///
-    pub fn add_message<'a, A, I, J>(&self,
-                                    author: &git2::Signature,
-                                    committer: &git2::Signature,
-                                    message: A,
-                                    tree: &git2::Tree,
-                                    parents: I
-    ) -> Result<Commit<'r>, git2::Error>
-        where A: AsRef<str>,
-              I: IntoIterator<Item = &'a Commit<'a>, IntoIter = J>,
-              J: Iterator<Item = &'a Commit<'a>>
-    {
-        let parent_vec : Vec<&Commit> = parents.into_iter().collect();
-
-        self.repo
-            .commit(None, author, committer, message.as_ref(), tree, &parent_vec)
-            .and_then(|id| self.repo.find_commit(id))
-            .wrap_with_kind(EK::CannotCreateMessage)
-            .and_then(|message| self.add_leaf(message.id()).map(|_| message))
     }
 }
 
