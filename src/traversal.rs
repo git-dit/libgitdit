@@ -139,3 +139,102 @@ impl TraversalBuilder for git2::Revwalk<'_> {
         Ok(self)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use std::collections::{self, HashSet};
+
+    use crate::base::tests::TestOid;
+    use crate::error::tests::TestError;
+    use crate::object::tests::{TestObject, TestOdb};
+
+    impl<'t, T> Traversible<'t> for (T, TestOdb)
+    where
+        T: Base<Oid = <TestOdb as Base>::Oid, InnerError = <TestOdb as Base>::InnerError>,
+    {
+        type TraversalBuilder = <TestOdb as Traversible<'t>>::TraversalBuilder;
+
+        fn traversal_builder(&'t self) -> error::Result<Self::TraversalBuilder, Self::InnerError> {
+            self.1.traversal_builder()
+        }
+    }
+
+    impl<'t> Traversible<'t> for TestOdb {
+        type TraversalBuilder = TestTraversal<'t>;
+
+        fn traversal_builder(&'t self) -> error::Result<Self::TraversalBuilder, Self::InnerError> {
+            Ok(TestTraversal {
+                db: self.ro_objects(),
+                heads: Default::default(),
+                ends: Default::default(),
+            })
+        }
+    }
+
+    pub struct TestTraversal<'t> {
+        db: std::sync::RwLockReadGuard<'t, HashSet<TestObject>>,
+        heads: collections::BinaryHeap<TestOid>,
+        ends: HashSet<TestOid>,
+    }
+
+    impl TraversalBuilder for TestTraversal<'_> {
+        type Oid = TestOid;
+        type Error = TestError;
+        type Iter = Self;
+        type BuildError = TestError;
+
+        fn with_heads(
+            mut self,
+            heads: impl IntoIterator<Item = impl Into<Self::Oid>>,
+        ) -> Result<Self, Self::BuildError> {
+            self.heads.extend(heads.into_iter().map(Into::into));
+            Ok(self)
+        }
+
+        fn with_ends(
+            mut self,
+            ends: impl IntoIterator<Item = impl Into<Self::Oid>>,
+        ) -> Result<Self, Self::BuildError> {
+            self.ends.extend(ends.into_iter().map(Into::into));
+            Ok(self)
+        }
+
+        fn build(self) -> Result<Self::Iter, Self::BuildError> {
+            Ok(self)
+        }
+    }
+
+    impl Iterator for TestTraversal<'_> {
+        type Item = Result<TestOid, TestError>;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            use crate::object::commit::Commit;
+
+            let id = self.heads.pop()?;
+
+            let Some(object) = self.db.get(&id) else {
+                return Some(Err(TestError));
+            };
+
+            let TestObject::Commit(commit) = object else {
+                return Some(Err(TestError));
+            };
+
+            let ends = &self.ends;
+            let parents = commit
+                .parent_ids()
+                .into_iter()
+                .filter(|p| !ends.contains(&p));
+            self.heads.extend(parents);
+
+            // The same commit may be the parent of multiple commits we've
+            // alreaty yielded. We don't check for duplicates when pushing
+            // them.
+            self.heads.retain(|c| c < &id);
+
+            Some(Ok(id))
+        }
+    }
+}
