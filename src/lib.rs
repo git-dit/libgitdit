@@ -49,8 +49,6 @@ pub mod repository;
 pub mod trailer;
 pub mod traversal;
 
-mod utils;
-
 #[cfg(test)]
 mod test_utils;
 
