@@ -229,10 +229,66 @@ impl<'r> CollectableRefs<'r>
             }
         })
     }
+
+    /// Retrieve all collectable leaves for an [Issue]
+    pub fn leaves<R>(
+        &self,
+        issue: &Issue<'r, R>,
+    ) -> error::Result<impl Iterator<Item = RefResult<'r, R>>, R::InnerError>
+    where
+        R: reference::Store<'r> + object::Database<'r> + Traversible<'r>,
+    {
+        use object::commit::Commit;
+        use reference::{Reference, References};
+
+        let mut dead_leaves = Vec::new();
+
+        let mut messages = issue
+            .terminated_messages()?
+            .with_heads(issue.local_head()?.and_then(|h| h.target()))
+            .map_err(Into::into)
+            .wrap_with_kind(error::Kind::CannotConstructRevwalk)?;
+
+        let mut candidates: std::collections::HashMap<_, Vec<_>> = Default::default();
+
+        for reference in issue.local_refs()?.leaves() {
+            let reference = reference.wrap_with_kind(error::Kind::CannotGetReference)?;
+            if let Some(id) = reference.target() {
+                messages = messages
+                    .with_heads(issue.repo().find_commit(id.clone())?.parent_ids())
+                    .map_err(Into::into)
+                    .wrap_with_kind(error::Kind::CannotConstructRevwalk)?;
+
+                candidates.entry(id).or_default().push(Ok(reference));
+            } else {
+                dead_leaves.push(Ok(reference))
+            };
+        }
+
+        let collectable = messages
+            .build()
+            .map_err(Into::into)
+            .wrap_with_kind(error::Kind::CannotConstructRevwalk)?
+            .map_while(move |i| {
+                if candidates.is_empty() {
+                    // We can stop looking for references to collect when we ran
+                    // out of candidates.
+                    None
+                } else {
+                    Some(match i {
+                        Ok(id) => candidates.remove(&id).unwrap_or_default(),
+                        Err(e) => vec![Err(e)],
+                    })
+                }
+            });
+        Ok(std::iter::once(dead_leaves).chain(collectable).flatten())
+    }
 }
 
-
-
+type RefResult<'r, R> = std::result::Result<
+    <R as reference::Store<'r>>::Reference,
+    <<R as Traversible<'r>>::TraversalBuilder as TraversalBuilder>::Error,
+>;
 
 #[cfg(test)]
 mod tests {
