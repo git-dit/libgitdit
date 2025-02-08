@@ -25,18 +25,6 @@ use utils::ResultIterExt;
 use error::*;
 use error::Kind as EK;
 
-
-/// Reference collecting iterator
-///
-/// This is a convenience type for a `ReferenceDeletingIter` wrapping an
-/// iterator over to-be-collected references.
-///
-pub type ReferenceCollector<'r> = iter::ReferenceDeletingIter<
-    'r,
-    <Vec<Reference<'r>> as IntoIterator>::IntoIter
->;
-
-
 pub enum ReferenceCollectionSpec {
     Never,
     BackedByRemoteHead,
