@@ -14,16 +14,13 @@
 
 use git2::{self, Reference};
 
-use crate::error;
+use crate::error::{self, ResultExt};
 use crate::issue::Issue;
 use crate::object;
 use crate::reference;
 use crate::traversal::{TraversalBuilder, Traversible};
 use iter::{self, RefsReferringTo};
 use utils::ResultIterExt;
-
-use error::*;
-use error::Kind as EK;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ReferenceCollectionSpec {
@@ -182,7 +179,7 @@ impl CollectableRefs {
     }
 }
 
-type RefResult<'r, R> = std::result::Result<
+type RefResult<'r, R> = Result<
     <R as reference::Store<'r>>::Reference,
     <<R as Traversible<'r>>::TraversalBuilder as TraversalBuilder>::Error,
 >;
@@ -282,7 +279,7 @@ mod tests {
         let mut collected: Vec<_> = issues
             .iter()
             .flat_map(|i| collectable.for_issue(i).expect("Error during discovery of collectable refs"))
-            .collect::<std::result::Result<Vec<_>, _>>()
+            .collect::<Result<Vec<_>, _>>()
             .expect("Error during collection")
             .into_iter()
             .map(|r| r.target().expect("Could not retrieve target"))
