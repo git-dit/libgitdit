@@ -265,7 +265,7 @@ mod tests {
         let mut collected: Vec<_> = issues
             .iter()
             .flat_map(|i| collectable.for_issue(i).expect("Error during discovery of collectable refs"))
-            .collect::<Result<Vec<_>, git2::Error>>()
+            .collect::<std::result::Result<Vec<_>, _>>()
             .expect("Error during collection")
             .into_iter()
             .map(|r| r.peel(git2::ObjectType::Commit).expect("Could not peel ref").id())
