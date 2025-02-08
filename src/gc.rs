@@ -16,6 +16,9 @@ use git2::{self, Reference};
 
 use crate::error;
 use crate::issue::Issue;
+use crate::object;
+use crate::reference;
+use crate::traversal::{TraversalBuilder, Traversible};
 use iter::{self, RefsReferringTo};
 use utils::ResultIterExt;
 
@@ -188,6 +191,43 @@ impl<'r> CollectableRefs<'r>
             target.push(parent)?;
         }
         Ok(())
+    }
+
+    /// Retrieve the local reference if it is collectable
+    pub fn head<R>(
+        &self,
+        issue: &Issue<'r, R>,
+    ) -> error::Result<Option<R::Reference>, R::InnerError>
+    where
+        R: reference::Store<'r> + object::Database<'r> + Traversible<'r>,
+    {
+        use reference::Reference;
+
+        let Some(local_head) = issue.local_head()? else {
+            return Ok(None);
+        };
+
+        Ok(match self.collect_heads {
+            ReferenceCollectionSpec::Never => None,
+            ReferenceCollectionSpec::BackedByRemoteHead => {
+                let Some(target) = local_head.target() else {
+                    return Ok(Some(local_head));
+                };
+
+                issue
+                    .all_remote_heads()?
+                    .try_fold(issue.terminated_messages()?, |i, r| {
+                        i.with_heads(r?.target())
+                            .map_err(Into::into)
+                            .wrap_with_kind(error::Kind::CannotConstructRevwalk)
+                    })?
+                    .build()
+                    .map_err(Into::into)
+                    .wrap_with_kind(error::Kind::CannotConstructRevwalk)?
+                    .any(|i| i.map(|i| i == target).unwrap_or(false))
+                    .then_some(local_head)
+            }
+        })
     }
 }
 
