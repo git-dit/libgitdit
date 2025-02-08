@@ -49,9 +49,6 @@ pub mod repository;
 pub mod trailer;
 pub mod traversal;
 
-#[cfg(test)]
-mod test_utils;
-
 // A selection of types are reexported for more convenient access.
 pub use error::Error;
 pub use issue::Issue;
