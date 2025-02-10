@@ -113,23 +113,6 @@ impl<'r> CollectableRefs<'r>
         Ok(res)
     }
 
-    /// Push the parents of a referred commit to a revwalk
-    ///
-    fn push_ref_parents<'a>(
-        target: &mut RefsReferringTo,
-        reference: &'a Reference<'a>,
-    ) -> Result<(), git2::Error> {
-        let referred_commit = reference
-            .peel(git2::ObjectType::Commit)
-            .wrap_with_kind(EK::CannotGetCommit)?
-            .into_commit()
-            .map_err(|o| EK::CannotGetCommitForRev(o.id().to_string()))?;
-        for parent in referred_commit.parent_ids() {
-            target.push(parent)?;
-        }
-        Ok(())
-    }
-
     /// Retrieve the local reference if it is collectable
     pub fn head<R>(
         &self,
