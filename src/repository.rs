@@ -99,9 +99,6 @@ pub trait RepositoryExt<'r>: reference::Store<'r> + Sized {
         A: AsRef<str>,
         I: IntoIterator<Item = &'a Commit<'a>, IntoIter = J>,
         J: Iterator<Item = &'a Commit<'a>>;
-
-    /// Produce a CollectableRefs
-    fn collectable_refs(&'r self) -> gc::CollectableRefs<'r>;
 }
 
 impl<'r> RepositoryExt<'r> for git2::Repository {
@@ -174,10 +171,6 @@ impl<'r> RepositoryExt<'r> for git2::Repository {
                 issue.update_head(*issue.id(), true)?;
                 Ok(issue)
             })
-    }
-
-    fn collectable_refs(&'r self) -> gc::CollectableRefs<'r> {
-        gc::CollectableRefs::new(self)
     }
 }
 
