@@ -25,11 +25,17 @@ use utils::ResultIterExt;
 use error::*;
 use error::Kind as EK;
 
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ReferenceCollectionSpec {
     Never,
     BackedByRemoteHead,
 }
 
+impl Default for ReferenceCollectionSpec {
+    fn default() -> Self {
+        Self::Never
+    }
+}
 
 /// Type representing collectable references
 ///
