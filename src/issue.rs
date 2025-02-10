@@ -76,6 +76,11 @@ impl<'r, R: Base> Issue<'r, R> {
     pub fn id(&self) -> &R::Oid {
         &self.id
     }
+
+    /// Get the repository the issue lifes in
+    pub(crate) fn repo(&self) -> &'r R {
+        self.repo
+    }
 }
 
 impl<'r> Issue<'r, git2::Repository> {
