@@ -10,8 +10,6 @@
 //! This module provides the `RepositoryExt` extension trait which provides
 //! issue handling utilities for repositories.
 
-use std::collections::HashSet;
-
 use crate::error::{self, ResultExt};
 use crate::object::{self, commit};
 use crate::reference;
@@ -19,7 +17,7 @@ use crate::traversal::Traversible;
 use issue::Issue;
 
 /// Set of unique issues
-pub type UniqueIssues<'r, R> = HashSet<Issue<'r, R>>;
+pub type UniqueIssues<'r, R> = std::collections::HashSet<Issue<'r, R>>;
 
 /// Extension trait for Repositories
 ///
