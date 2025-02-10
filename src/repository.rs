@@ -5,13 +5,10 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
-//
-
 //! Repository related utilities
 //!
 //! This module provides the `RepositoryExt` extension trait which provides
 //! issue handling utilities for repositories.
-//!
 
 use std::collections::HashSet;
 
@@ -23,7 +20,6 @@ use issue::Issue;
 
 /// Set of unique issues
 pub type UniqueIssues<'r, R> = HashSet<Issue<'r, R>>;
-
 
 /// Extension trait for Repositories
 ///
@@ -288,4 +284,3 @@ mod tests {
         assert_eq!(iter.next(), None);
     }
 }
-
