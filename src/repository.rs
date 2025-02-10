@@ -24,7 +24,7 @@ pub type UniqueIssues<'r, R> = std::collections::HashSet<Issue<'r, R>>;
 /// This trait is intended as an extension for repositories. It introduces
 /// utility functions for dealing with issues, e.g. for retrieving references
 /// for issues, creating messages and finding the initial message of an issue.
-pub trait RepositoryExt<'r>: reference::Store<'r> + Sized {
+pub trait Repository<'r>: reference::Store<'r> + Sized {
     /// Retrieve an issue
     ///
     /// Returns the issue with a given id.
@@ -154,7 +154,7 @@ pub trait RepositoryExt<'r>: reference::Store<'r> + Sized {
     }
 }
 
-impl RepositoryExt<'_> for git2::Repository {}
+impl Repository<'_> for git2::Repository {}
 
 #[cfg(test)]
 mod tests {
@@ -165,7 +165,7 @@ mod tests {
 
     type TestRepo = (TestStore, TestOdb);
 
-    impl RepositoryExt<'_> for TestRepo {}
+    impl Repository<'_> for TestRepo {}
 
     #[test]
     fn find_issue() {

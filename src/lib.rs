@@ -59,5 +59,4 @@ mod test_utils;
 pub use error::Error;
 pub use issue::Issue;
 pub use remote::RemoteExt;
-pub use repository::RepositoryExt;
-
+pub use repository::Repository;
