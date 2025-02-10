@@ -10,17 +10,12 @@
 //! Garbage collecting utilities
 //!
 //! This module provides git-dit related garbage collection utilites.
-//!
-
-use git2::{self, Reference};
 
 use crate::error::{self, ResultExt};
 use crate::issue::Issue;
 use crate::object;
 use crate::reference;
 use crate::traversal::{TraversalBuilder, Traversible};
-use iter::{self, RefsReferringTo};
-use utils::ResultIterExt;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ReferenceCollectionSpec {
