@@ -41,32 +41,15 @@ impl Default for ReferenceCollectionSpec {
 ///
 /// Use this type in order to compute dit-references which are no longer
 /// required and thus may be collected.
-///
-pub struct CollectableRefs<'r>
-{
-    repo: &'r git2::Repository,
+#[derive(Copy, Clone, Default)]
+pub struct CollectableRefs {
     /// Should remote references be considered during collection?
     consider_remote_refs: bool,
     /// Under what circumstances should local heads be collected?
     collect_heads: ReferenceCollectionSpec,
 }
 
-impl<'r> CollectableRefs<'r>
-{
-    /// Create a new CollectableRefs object
-    ///
-    /// By default only local references are considered, e.g. references which
-    /// are unnecessary due to remote references are not reported.
-    ///
-    pub fn new(repo: &'r git2::Repository) -> Self
-    {
-        CollectableRefs {
-            repo: repo,
-            consider_remote_refs: false,
-            collect_heads: ReferenceCollectionSpec::Never,
-        }
-    }
-
+impl CollectableRefs {
     /// Causes remote references to be considered
     ///
     /// By default, only local references are considered for deciding which
@@ -92,7 +75,7 @@ impl<'r> CollectableRefs<'r>
     ///
     /// Construct an iterator yielding all collectable references for a given
     /// issue, according to the configuration.
-    pub fn for_issue<R>(
+    pub fn for_issue<'r, R>(
         &self,
         issue: &Issue<'r, R>,
     ) -> error::Result<impl Iterator<Item = RefResult<'r, R>>, R::InnerError>
@@ -108,7 +91,7 @@ impl<'r> CollectableRefs<'r>
     }
 
     /// Retrieve the local reference if it is collectable
-    pub fn head<R>(
+    pub fn head<'r, R>(
         &self,
         issue: &Issue<'r, R>,
     ) -> error::Result<Option<R::Reference>, R::InnerError>
@@ -145,7 +128,7 @@ impl<'r> CollectableRefs<'r>
     }
 
     /// Retrieve all collectable leaves for an [Issue]
-    pub fn leaves<R>(
+    pub fn leaves<'r, R>(
         &self,
         issue: &Issue<'r, R>,
     ) -> error::Result<impl Iterator<Item = RefResult<'r, R>>, R::InnerError>
@@ -294,9 +277,8 @@ mod tests {
 
         refs_to_collect.sort();
 
-        let mut testing_repo = crate::test_utils::TestingRepo::new("collectable_leaves");
-        let collectable = CollectableRefs::new(testing_repo.repo())
-            .collect_heads(ReferenceCollectionSpec::BackedByRemoteHead);
+        let collectable =
+            CollectableRefs::default().collect_heads(ReferenceCollectionSpec::BackedByRemoteHead);
         let mut collected: Vec<_> = issues
             .iter()
             .flat_map(|i| collectable.for_issue(i).expect("Error during discovery of collectable refs"))
