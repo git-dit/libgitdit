@@ -238,7 +238,9 @@ mod tests {
                 .with_parent(initial_message.clone())
                 .build("Test message 4")
                 .expect("Could not add message");
-            issue.update_head(message, true).expect("Could not update head");
+            issue
+                .update_head(message, true)
+                .expect("Could not update head");
             issues.push(issue);
             refs_to_collect.push(message);
         }
@@ -278,7 +280,11 @@ mod tests {
             CollectableRefs::default().collect_heads(ReferenceCollectionSpec::BackedByRemoteHead);
         let mut collected: Vec<_> = issues
             .iter()
-            .flat_map(|i| collectable.for_issue(i).expect("Error during discovery of collectable refs"))
+            .flat_map(|i| {
+                collectable
+                    .for_issue(i)
+                    .expect("Error during discovery of collectable refs")
+            })
             .collect::<Result<Vec<_>, _>>()
             .expect("Error during collection")
             .into_iter()
