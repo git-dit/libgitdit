@@ -107,7 +107,7 @@ impl<'r> RepositoryExt<'r> for git2::Repository {
 
         // make sure the id refers to an issue by checking whether an associated
         // head reference exists
-        if retval.heads()?.next().is_some() {
+        if retval.all_heads()?.next().is_some() {
             Ok(retval)
         } else {
             Err(EK::CannotFindIssueHead(id).into())
@@ -212,6 +212,7 @@ mod tests {
 
         let local_head = issue
             .local_head()
+            .expect("No local head found")
             .expect("Could not retrieve local head reference");
         let retrieved_issue = repo
             .issue_by_head_ref(&local_head)
