@@ -253,9 +253,7 @@ mod tests {
             .issues()
             .expect("Could not retrieve issues")
             .into_iter();
-        let retrieved_issue = issues
-            .next()
-            .expect("Could not retrieve issue");
+        let retrieved_issue = issues.next().expect("Could not retrieve issue");
         assert_eq!(retrieved_issue.id(), issue.id());
         assert!(issues.next().is_none());
     }
