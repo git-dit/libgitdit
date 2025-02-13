@@ -5,44 +5,44 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
-//
-
 //! Repository related utilities
 //!
 //! This module provides the `RepositoryExt` extension trait which provides
 //! issue handling utilities for repositories.
-//!
 
-use std::collections::HashSet;
-
-use git2::{self, Commit, Tree};
-
-use crate::error;
+use crate::error::{self, ResultExt};
+use crate::object::{self, commit};
 use crate::reference;
 use crate::traversal::Traversible;
-use gc;
 use issue::Issue;
-use iter;
-use utils::ResultIterExt;
-
-use error::*;
-use error::{Kind as EK};
-
 
 /// Set of unique issues
-pub type UniqueIssues<'r, R> = HashSet<Issue<'r, R>>;
-
+pub type UniqueIssues<'r, R> = std::collections::HashSet<Issue<'r, R>>;
 
 /// Extension trait for Repositories
 ///
 /// This trait is intended as an extension for repositories. It introduces
 /// utility functions for dealing with issues, e.g. for retrieving references
 /// for issues, creating messages and finding the initial message of an issue.
-pub trait RepositoryExt<'r>: reference::Store<'r> + Sized {
+pub trait Repository<'r>: reference::Store<'r> + Sized {
     /// Retrieve an issue
     ///
     /// Returns the issue with a given id.
-    fn find_issue(&'r self, id: Self::Oid) -> Result<Issue<'r, Self>, Self::InnerError>;
+    fn find_issue(&'r self, id: Self::Oid) -> error::Result<Issue<'r, Self>, Self::InnerError> {
+        let retval = Issue::new_unchecked(self, id.clone());
+
+        // We need to make sure the id refers to an issue by checking whether an
+        // associated head reference exists. And we do not want to pessimise the
+        // case where we have a local reference.
+        if retval.local_head()?.is_none() {
+            retval
+                .all_remote_heads()?
+                .next()
+                .ok_or(error::Kind::CannotFindIssueHead(id))??;
+        }
+
+        Ok(retval)
+    }
 
     /// Retrieve an issue by its head ref
     ///
@@ -50,12 +50,26 @@ pub trait RepositoryExt<'r>: reference::Store<'r> + Sized {
     fn issue_by_head_ref(
         &'r self,
         head_ref: &Self::Reference,
-    ) -> Result<Issue<'r, Self>, Self::InnerError>;
+    ) -> error::Result<Issue<'r, Self>, Self::InnerError> {
+        use reference::Reference;
+
+        head_ref
+            .parts()
+            .filter(|p| p.kind == reference::Kind::Head)
+            .map(|p| Issue::new_unchecked(self, p.issue))
+            .ok_or_else(|| match head_ref.name() {
+                Ok(s) => error::Kind::MalFormedHeadReference(s.to_owned()).into(),
+                Err(e) => error::Kind::CannotGetReference.wrap(e),
+            })
+    }
 
     /// Find the issue with a given message in it
     ///
     /// Returns the issue containing the message provided
-    fn issue_with_message(&'r self, message: Self::Oid) -> Result<Issue<'r, Self>, Self::InnerError>
+    fn issue_with_message(
+        &'r self,
+        message: Self::Oid,
+    ) -> error::Result<Issue<'r, Self>, Self::InnerError>
     where
         Self: Traversible<'r>,
     {
@@ -68,7 +82,7 @@ pub trait RepositoryExt<'r>: reference::Store<'r> + Sized {
             }
         }
 
-        Err(EK::NoTreeInitFound(message).into())
+        Err(error::Kind::NoTreeInitFound(message).into())
     }
 
     /// Get issue hashes for a prefix
@@ -79,120 +93,88 @@ pub trait RepositoryExt<'r>: reference::Store<'r> + Sized {
     fn issues_with_prefix(
         &'r self,
         prefix: &str,
-    ) -> Result<UniqueIssues<'r, Self>, Self::InnerError>;
+    ) -> error::Result<
+        impl IntoIterator<Item = error::Result<Issue<'r, Self>, Self::InnerError>>,
+        Self::InnerError,
+    > {
+        use issue::DIT_REF_PART;
+        use reference::Reference;
+
+        let path = format!("{prefix}/{DIT_REF_PART}");
+        let res = self
+            .references(path.as_ref())?
+            .into_iter()
+            .map(move |r| {
+                let issue = r
+                    .wrap_with_kind(error::Kind::CannotGetReference)?
+                    .parts()
+                    .filter(|p| p.kind == reference::Kind::Head)
+                    .map(|p| Issue::new_unchecked(self, p.issue));
+                Ok(issue)
+            })
+            .flat_map(Result::transpose);
+        Ok(res)
+    }
 
     /// Get all issue hashes
     ///
     /// This function returns all known issues known to the DIT repo.
-    fn issues(&'r self) -> Result<UniqueIssues<'r, Self>, Self::InnerError>;
+    fn issues(&'r self) -> error::Result<UniqueIssues<'r, Self>, Self::InnerError> {
+        use std::iter::FromIterator;
 
-    /// Create a new issue with an initial message
-    fn create_issue<'a, A, I, J>(
+        use remote::Names;
+
+        let mut issues: UniqueIssues<_> = Result::from_iter(self.issues_with_prefix("refs")?)?;
+        self.remote_names()?.ref_paths().try_for_each(|p| {
+            let path = p.wrap_with_kind(error::Kind::CannotConstructRevwalk)?;
+            for issue in self.issues_with_prefix(path.as_ref())? {
+                issues.insert(issue?);
+            }
+            Ok::<_, error::Error<Self::InnerError>>(())
+        })?;
+        Ok(issues)
+    }
+
+    /// Create a builder for issues
+    fn issue_builder<'c>(
         &'r self,
-        author: &git2::Signature,
-        committer: &git2::Signature,
-        message: A,
-        tree: &Tree,
-        parents: I,
-    ) -> Result<Issue<'r, Self>, Self::InnerError>
+    ) -> error::Result<
+        commit::Builder<'r, 'c, Self, impl commit::FollowUp<'r, Self, Output = Issue<'r, Self>>>,
+        Self::InnerError,
+    >
     where
-        A: AsRef<str>,
-        I: IntoIterator<Item = &'a Commit<'a>, IntoIter = J>,
-        J: Iterator<Item = &'a Commit<'a>>;
-}
-
-impl<'r> RepositoryExt<'r> for git2::Repository {
-    fn find_issue(&'r self, id: Self::Oid) -> Result<Issue<'r, Self>, Self::InnerError> {
-        let retval = Issue::new_unchecked(self, id);
-
-        // make sure the id refers to an issue by checking whether an associated
-        // head reference exists
-        if retval.all_heads()?.next().is_some() {
-            Ok(retval)
-        } else {
-            Err(EK::CannotFindIssueHead(id).into())
-        }
-    }
-
-    fn issue_by_head_ref(
-        &'r self,
-        head_ref: &Self::Reference,
-    ) -> Result<Issue<'r, Self>, Self::InnerError> {
-        use reference::Reference;
-
-        head_ref
-            .parts()
-            .filter(|p| p.kind == reference::Kind::Head)
-            .map(|p| Issue::new_unchecked(self, p.issue))
-            .ok_or_else(|| match Reference::name(head_ref) {
-                Ok(s) => error::Kind::MalFormedHeadReference(s.into()).into(),
-                Err(e) => error::Kind::CannotGetReference.wrap(e),
-            })
-    }
-
-    fn issues_with_prefix(
-        &'r self,
-        prefix: &str,
-    ) -> Result<UniqueIssues<'r, Self>, Self::InnerError> {
-        let glob = format!("{}/dit/**/head", prefix);
-        self.references_glob(&glob)
-            .wrap_with_kind(EK::CannotGetReferences(glob))
-            .map(|refs| iter::HeadRefsToIssuesIter::new(self, refs))?
-            .collect_result()
-    }
-
-    fn issues(&'r self) -> Result<UniqueIssues<'r, Self>, Self::InnerError> {
-        let glob = "**/dit/**/head";
-        self.references_glob(glob)
-            .wrap_with(|| EK::CannotGetReferences(glob.to_owned()))
-            .map(|refs| iter::HeadRefsToIssuesIter::new(self, refs))?
-            .collect_result()
-    }
-
-    fn create_issue<'a, A, I, J>(
-        &'r self,
-        author: &git2::Signature,
-        committer: &git2::Signature,
-        message: A,
-        tree: &Tree,
-        parents: I,
-    ) -> Result<Issue<'r, Self>, Self::InnerError>
-    where
-        A: AsRef<str>,
-        I: IntoIterator<Item = &'a Commit<'a>, IntoIter = J>,
-        J: Iterator<Item = &'a Commit<'a>>,
+        Self: object::Database<'r>,
+        'r: 'c,
     {
-        let parent_vec : Vec<&Commit> = parents.into_iter().collect();
-
-        self.commit(None, author, committer, message.as_ref(), tree, &parent_vec)
-            .wrap_with_kind(EK::CannotCreateMessage)
-            .and_then(|id| {
-                let issue = Issue::new_unchecked(self, id);
-                issue.update_head(*issue.id(), true)?;
-                Ok(issue)
-            })
+        self.commit_builder(|r, o: Self::Oid| {
+            let issue = Issue::new_unchecked(r, o.clone());
+            issue.update_head(o, false)?;
+            Ok(issue)
+        })
     }
 }
 
-
-
+impl Repository<'_> for git2::Repository {}
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use test_utils::{TestingRepo, empty_tree};
 
-    // RepositoryExt tests
+    use crate::object::tests::TestOdb;
+    use crate::reference::tests::TestStore;
+
+    type TestRepo = (TestStore, TestOdb);
+
+    impl Repository<'_> for TestRepo {}
 
     #[test]
     fn find_issue() {
-        let mut testing_repo = TestingRepo::new("find_issue");
-        let repo = testing_repo.repo();
+        let repo = TestRepo::default();
 
-        let sig = git2::Signature::now("Foo Bar", "foo.bar@example.com")
-            .expect("Could not create signature");
         let issue = repo
-            .create_issue(&sig, &sig, "Test message 1", &empty_tree(repo), vec![])
+            .issue_builder()
+            .expect("Could not create issue builder")
+            .build("Test message 1")
             .expect("Could not create issue");
 
         repo.find_issue(issue.id().clone())
@@ -201,13 +183,12 @@ mod tests {
 
     #[test]
     fn issue_by_head_ref() {
-        let mut testing_repo = TestingRepo::new("issue_by_head_ref");
-        let repo = testing_repo.repo();
+        let repo = TestRepo::default();
 
-        let sig = git2::Signature::now("Foo Bar", "foo.bar@example.com")
-            .expect("Could not create signature");
         let issue = repo
-            .create_issue(&sig, &sig, "Test message 1", &empty_tree(repo), vec![])
+            .issue_builder()
+            .expect("Could not create issue builder")
+            .build("Test message 1")
             .expect("Could not create issue");
 
         let local_head = issue
@@ -222,76 +203,75 @@ mod tests {
 
     #[test]
     fn issue_with_message() {
-        let mut testing_repo = TestingRepo::new("issue_with_message");
-        let repo = testing_repo.repo();
+        let repo = TestRepo::default();
 
-        let sig = git2::Signature::now("Foo Bar", "foo.bar@example.com")
-            .expect("Could not create signature");
-        let empty_tree = empty_tree(repo);
         let issue = repo
-            .create_issue(&sig, &sig, "Test message 1", &empty_tree, vec![])
+            .issue_builder()
+            .expect("Could not create issue builder")
+            .build("Test message 1")
             .expect("Could not create issue");
         let initial_message = issue
             .initial_message()
             .expect("Could not retrieve initial message");
         let message = issue
-            .add_message(&sig, &sig, "Test message 2", &empty_tree, vec![&initial_message])
+            .message_builder()
+            .expect("Could not create builder")
+            .with_parent(initial_message.clone())
+            .build("Test message 2")
             .expect("Could not add message");
 
         let retrieved_issue = repo
-            .issue_with_message(message.id())
+            .issue_with_message(message)
             .expect("Could not retrieve issue");
         assert_eq!(retrieved_issue.id(), issue.id());
     }
 
     #[test]
     fn issues() {
-        let mut testing_repo = TestingRepo::new("issues");
-        let repo = testing_repo.repo();
+        let repo = TestRepo::default();
 
-        let sig = git2::Signature::now("Foo Bar", "foo.bar@example.com")
-            .expect("Could not create signature");
         let issue = repo
-            .create_issue(&sig, &sig, "Test message 1", &empty_tree(repo), vec![])
+            .issue_builder()
+            .expect("Could not create issue builder")
+            .build("Test message 1")
             .expect("Could not create issue");
 
         let mut issues = repo
             .issues()
             .expect("Could not retrieve issues")
             .into_iter();
-        let retrieved_issue = issues
-            .next()
-            .expect("Could not retrieve issue");
+        let retrieved_issue = issues.next().expect("Could not retrieve issue");
         assert_eq!(retrieved_issue.id(), issue.id());
         assert!(issues.next().is_none());
     }
 
     #[test]
     fn first_parent_messages() {
-        let mut testing_repo = TestingRepo::new("first_parent_revwalk");
-        let repo = testing_repo.repo();
+        let repo = TestRepo::default();
 
-        let sig = git2::Signature::now("Foo Bar", "foo.bar@example.com")
-            .expect("Could not create signature");
-        let empty_tree = empty_tree(repo);
         let issue = repo
-            .create_issue(&sig, &sig, "Test message 1", &empty_tree, vec![])
+            .issue_builder()
+            .expect("Could not create issue builder")
+            .build("Test message 1")
             .expect("Could not create issue");
         let initial_message = issue
             .initial_message()
             .expect("Could not retrieve initial message");
         let message = issue
-            .add_message(&sig, &sig, "Test message 2", &empty_tree, vec![&initial_message])
+            .message_builder()
+            .expect("Could not create builder")
+            .with_parent(initial_message.clone())
+            .build("Test message 2")
             .expect("Could not add message");
 
         let mut iter = repo
-            .first_parent_messages(message.id())
+            .first_parent_messages(message)
             .expect("Could not create first parent iterator");
         let mut current_id = iter
             .next()
             .expect("No more messages")
             .expect("Could not retrieve message");
-        assert_eq!(current_id, message.id());
+        assert_eq!(current_id, message);
 
         current_id = iter
             .next()
@@ -302,4 +282,3 @@ mod tests {
         assert_eq!(iter.next(), None);
     }
 }
-
