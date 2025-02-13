@@ -42,18 +42,12 @@ pub mod base;
 pub mod error;
 pub mod gc;
 pub mod issue;
-pub mod iter;
 pub mod object;
 pub mod reference;
 pub mod remote;
 pub mod repository;
 pub mod trailer;
 pub mod traversal;
-
-mod utils;
-
-#[cfg(test)]
-mod test_utils;
 
 // A selection of types are reexported for more convenient access.
 pub use error::Error;
