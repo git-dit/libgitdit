@@ -60,6 +60,7 @@ pub trait Store<'r>: Base {
     }
 }
 
+#[cfg(feature = "git2")]
 impl<'r> Store<'r> for git2::Repository {
     type Reference = git2::Reference<'r>;
     type References = git2::References<'r>;
@@ -194,6 +195,7 @@ pub trait Reference {
     fn target(&self) -> Option<Self::Oid>;
 }
 
+#[cfg(feature = "git2")]
 impl Reference for git2::Reference<'_> {
     type Name = str;
     type Oid = git2::Oid;

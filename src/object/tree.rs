@@ -18,6 +18,7 @@ pub trait Builder {
     fn write(self) -> Result<Self::Oid, Self::Error>;
 }
 
+#[cfg(feature = "git2")]
 impl Builder for git2::TreeBuilder<'_> {
     type Oid = git2::Oid;
     type Error = git2::Error;

@@ -154,6 +154,7 @@ pub trait Repository<'r>: reference::Store<'r> + Sized {
     }
 }
 
+#[cfg(feature = "git2")]
 impl Repository<'_> for git2::Repository {}
 
 #[cfg(test)]

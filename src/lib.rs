@@ -34,6 +34,7 @@
 //! contain arbitrary metadata in the form of git trailers.
 //!
 
+#[cfg(feature = "git2")]
 extern crate git2;
 
 pub mod base;
