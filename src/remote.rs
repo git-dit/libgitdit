@@ -11,8 +11,6 @@
 
 use std::str::Utf8Error;
 
-use git2::Remote;
-
 use crate::base::Base;
 use issue::Issue;
 
@@ -90,7 +88,7 @@ pub trait RemoteExt {
     fn all_issues_refspec(&self) -> Option<String>;
 }
 
-impl<'r> RemoteExt for Remote<'r> {
+impl RemoteExt for git2::Remote<'_> {
     fn issue_refspec(&self, issue: Issue<'_, impl Base>) -> Option<String> {
         self.name()
             .map(|n| format!("+refs/dit/{0}/*:refs/remotes/{n}/dit/{0}/*", issue.id()))
