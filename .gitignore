@@ -1,5 +1,2 @@
 target
 Cargo.lock
-
-# We currently have tests that produce files in a dedicated directory
-test
