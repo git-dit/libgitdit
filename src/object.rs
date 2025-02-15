@@ -85,6 +85,7 @@ pub trait Database<'r>: Base {
     ) -> error::Result<Self::TreeBuilder, Self::InnerError>;
 }
 
+#[cfg(feature = "git2")]
 impl<'r> Database<'r> for git2::Repository {
     type Commit = git2::Commit<'r>;
     type Tree = git2::Tree<'r>;

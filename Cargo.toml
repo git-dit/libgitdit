@@ -7,6 +7,4 @@ authors = ["Matthias Beyer <mail@beyermatthias.de>",
 license = "MPL-2.0"
 
 [dependencies]
-git2 = "0.17"
-regex = "1"
-lazy_static = "1"
+git2 = { version = "0.20", optional = true }

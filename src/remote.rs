@@ -30,6 +30,7 @@ pub trait Names {
     }
 }
 
+#[cfg(feature = "git2")]
 impl Names for git2::string_array::StringArray {
     type NameIter<'n> = git2::string_array::IterBytes<'n>;
 
@@ -88,6 +89,7 @@ pub trait RemoteExt {
     fn all_issues_refspec(&self) -> Option<String>;
 }
 
+#[cfg(feature = "git2")]
 impl RemoteExt for git2::Remote<'_> {
     fn issue_refspec(&self, issue: Issue<'_, impl Base>) -> Option<String> {
         self.name()

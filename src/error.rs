@@ -197,6 +197,7 @@ pub trait InnerError: std::error::Error {
     type RefName: Clone + fmt::Debug + fmt::Display;
 }
 
+#[cfg(feature = "git2")]
 impl InnerError for git2::Error {
     type Oid = git2::Oid;
     type RefName = String;

@@ -41,6 +41,7 @@ pub trait Commit {
     fn tree_id(&self) -> Self::Oid;
 }
 
+#[cfg(feature = "git2")]
 impl Commit for git2::Commit<'_> {
     type Oid = git2::Oid;
 

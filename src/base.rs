@@ -33,6 +33,7 @@ where
     type InnerError = E;
 }
 
+#[cfg(feature = "git2")]
 impl Base for git2::Repository {
     type Oid = git2::Oid;
     type InnerError = git2::Error;

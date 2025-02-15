@@ -19,13 +19,9 @@ pub mod filter;
 pub mod iter;
 pub mod spec;
 
-use regex::Regex;
 use std::fmt;
 use std::result::Result as RResult;
 use std::str::FromStr;
-
-use error::*;
-use error::Kind as EK;
 
 /// The Key of a Trailer:
 ///
@@ -150,18 +146,13 @@ impl fmt::Display for Trailer {
 }
 
 impl FromStr for Trailer {
-    type Err = Error<git2::Error>;
+    type Err = String;
 
-    fn from_str(s: &str) -> RResult<Self, Self::Err> {
-        lazy_static! {
-            // regex to match the beginning of a trailer
-            static ref RE: Regex = Regex::new(r"^([[:alnum:]-]+)[:=](.*)$").unwrap();
-        }
-
-        match RE.captures(s).map(|c| (c.get(1), c.get(2))) {
-            Some((Some(key), Some(value))) => Ok(Trailer::new(key.as_str(), value.as_str().trim())),
-            _ => Err(EK::TrailerFormatError(s.to_owned()).into())
-        }
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        s.split_once([':', '='])
+            .filter(|(k, _)| k.chars().all(|c| c.is_alphanumeric() || c == '-'))
+            .map(|(k, v)| Trailer::new(k, v.trim()))
+            .ok_or_else(|| s.to_owned())
     }
 }
 

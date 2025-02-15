@@ -40,6 +40,7 @@ pub trait Traversible<'t>: Base {
     fn traversal_builder(&'t self) -> error::Result<Self::TraversalBuilder, Self::InnerError>;
 }
 
+#[cfg(feature = "git2")]
 impl<'t> Traversible<'t> for git2::Repository {
     type TraversalBuilder = git2::Revwalk<'t>;
 
@@ -106,6 +107,7 @@ pub trait TraversalBuilder: Sized {
     fn build(self) -> Result<Self::Iter, Self::BuildError>;
 }
 
+#[cfg(feature = "git2")]
 impl TraversalBuilder for git2::Revwalk<'_> {
     type Oid = git2::Oid;
 

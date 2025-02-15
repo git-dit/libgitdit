@@ -34,9 +34,8 @@
 //! contain arbitrary metadata in the form of git trailers.
 //!
 
-#[macro_use] extern crate lazy_static;
+#[cfg(feature = "git2")]
 extern crate git2;
-extern crate regex;
 
 pub mod base;
 pub mod error;
