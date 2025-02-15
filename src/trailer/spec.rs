@@ -29,7 +29,7 @@ pub struct TrailerSpec<'k> {
     pub accumulation: AccumulationPolicy,
 }
 
-impl<'k> TrailerSpec<'k> {
+impl TrailerSpec<'_> {
     /// Create a SingleAccumulator from the specification
     ///
     pub fn single_accumulator(&self) -> SingleAccumulator {

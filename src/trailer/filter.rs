@@ -78,7 +78,7 @@ impl<'a> TrailerFilter<'a> {
     /// The function returns true if the issue matches the filter, e.g. it
     /// should be displayed or considered for an operation.
     ///
-    pub fn matches<'b>(
+    pub fn matches(
         &self,
         accumulator: &::std::collections::HashMap<String, ValueAccumulator>,
     ) -> bool {
