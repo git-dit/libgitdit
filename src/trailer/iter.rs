@@ -14,50 +14,56 @@
 
 use super::{Trailer, TrailerKey, TrailerValue};
 
-
 /// Iterator assembling trailers from key-value pairs
 ///
 /// This iterator wraps an iterator returning key-value pairs. The pairs
 /// returned by the wrapped iterator are assembled to `Trailer`s.
 ///
 pub struct PairsToTrailers<K, I>
-    where K: Into<TrailerKey>,
-          I: Iterator<Item = (K, TrailerValue)>
+where
+    K: Into<TrailerKey>,
+    I: Iterator<Item = (K, TrailerValue)>,
 {
-    inner: I
+    inner: I,
 }
 
 impl<K, I, J> From<J> for PairsToTrailers<K, I>
-    where K: Into<TrailerKey>,
-          I: Iterator<Item = (K, TrailerValue)>,
-          J: IntoIterator<Item = (K, TrailerValue), IntoIter = I>
+where
+    K: Into<TrailerKey>,
+    I: Iterator<Item = (K, TrailerValue)>,
+    J: IntoIterator<Item = (K, TrailerValue), IntoIter = I>,
 {
     fn from(iter: J) -> Self {
-        PairsToTrailers { inner: iter.into_iter() }
+        PairsToTrailers {
+            inner: iter.into_iter(),
+        }
     }
 }
 
 impl<K, I> Iterator for PairsToTrailers<K, I>
-    where K: Into<TrailerKey>,
-          I: Iterator<Item = (K, TrailerValue)>
+where
+    K: Into<TrailerKey>,
+    I: Iterator<Item = (K, TrailerValue)>,
 {
     type Item = Trailer;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.inner
-            .next()
-            .map(|(k, v)| Trailer { key: k.into(), value: v })
+        self.inner.next().map(|(k, v)| Trailer {
+            key: k.into(),
+            value: v,
+        })
     }
 }
-
 
 /// Iterator extracting DIT trailers from an iterator over trailers
 ///
 pub struct DitTrailers<I>(I)
-    where I: Iterator<Item = Trailer>;
+where
+    I: Iterator<Item = Trailer>;
 
 impl<I> From<I> for DitTrailers<I>
-    where I: Iterator<Item = Trailer>
+where
+    I: Iterator<Item = Trailer>,
 {
     fn from(inner: I) -> Self {
         DitTrailers(inner)
@@ -65,7 +71,8 @@ impl<I> From<I> for DitTrailers<I>
 }
 
 impl<I> Iterator for DitTrailers<I>
-    where I: Iterator<Item = Trailer>
+where
+    I: Iterator<Item = Trailer>,
 {
     type Item = Trailer;
 
@@ -79,11 +86,8 @@ impl<I> Iterator for DitTrailers<I>
                     } else {
                         continue;
                     }
-
                 }
             }
         }
     }
-
 }
-

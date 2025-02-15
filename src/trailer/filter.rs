@@ -20,10 +20,9 @@
 
 use std::borrow::Borrow;
 
-use trailer::TrailerValue;
 use trailer::accumulation::ValueAccumulator;
 use trailer::spec::TrailerSpec;
-
+use trailer::TrailerValue;
 
 /// Type for matching TrailerValues
 ///
@@ -36,25 +35,24 @@ pub enum ValueMatcher {
 impl ValueMatcher {
     /// Check whether the value supplied matches the matcher
     ///
-    pub fn matches(&self, value: &TrailerValue) -> bool
-    {
+    pub fn matches(&self, value: &TrailerValue) -> bool {
         match self {
-            &ValueMatcher::Any             => true,
-            &ValueMatcher::Equals(ref v)   => value == v,
-            &ValueMatcher::Contains(ref s) => value.to_string().contains(s),
+            ValueMatcher::Any => true,
+            ValueMatcher::Equals(ref v) => value == v,
+            ValueMatcher::Contains(ref s) => value.to_string().contains(s),
         }
     }
 
     /// Check whether any of the value supplied matches the matcher
     ///
     pub fn matches_any<I, V>(&self, values: I) -> bool
-        where I: IntoIterator<Item = V>,
-              V: Borrow<TrailerValue>
+    where
+        I: IntoIterator<Item = V>,
+        V: Borrow<TrailerValue>,
     {
         values.into_iter().any(|v| self.matches(v.borrow()))
     }
 }
-
 
 /// Trailer based filter
 ///
@@ -67,7 +65,10 @@ impl<'a> TrailerFilter<'a> {
     /// Create a new trailer filter
     ///
     pub fn new(trailer: TrailerSpec<'a>, matcher: ValueMatcher) -> Self {
-        Self { trailer: trailer, matcher: matcher }
+        Self {
+            trailer,
+            matcher,
+        }
     }
 
     /// Check whether an issue matches the filter
@@ -77,7 +78,10 @@ impl<'a> TrailerFilter<'a> {
     /// The function returns true if the issue matches the filter, e.g. it
     /// should be displayed or considered for an operation.
     ///
-    pub fn matches<'b>(&self, accumulator: &::std::collections::HashMap<String, ValueAccumulator>) -> bool {
+    pub fn matches(
+        &self,
+        accumulator: &::std::collections::HashMap<String, ValueAccumulator>,
+    ) -> bool {
         let values = accumulator
             .get(self.trailer.key)
             .cloned()
@@ -91,4 +95,3 @@ impl<'a> TrailerFilter<'a> {
         &self.trailer
     }
 }
-
