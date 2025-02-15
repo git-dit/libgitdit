@@ -86,9 +86,9 @@ impl TrailerValue {
     /// Note that the result will always be a string value.
     ///
     pub fn append(&mut self, slice: &str) {
-        match self {
-            &mut TrailerValue::Int(i) => *self = TrailerValue::String(i.to_string() + slice),
-            &mut TrailerValue::String(ref mut s) => s.push_str(slice),
+        match *self {
+            TrailerValue::Int(i) => *self = TrailerValue::String(i.to_string() + slice),
+            TrailerValue::String(ref mut s) => s.push_str(slice),
         }
     }
 }
