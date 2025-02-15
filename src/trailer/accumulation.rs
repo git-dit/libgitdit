@@ -129,8 +129,9 @@ where
 {
     fn process(&mut self, trailer: Trailer) {
         let (key, value) = trailer.into();
-        self.get_mut(key.as_ref())
-            .map(|ref mut acc| acc.process(value));
+        if let Some(ref mut acc) = self.get_mut(key.as_ref()) {
+            acc.process(value)
+        }
     }
 }
 
