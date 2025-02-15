@@ -194,15 +194,15 @@ impl Accumulator for SingleAccumulator {
     }
 }
 
-impl Into<(String, ValueAccumulator)> for SingleAccumulator {
-    fn into(self) -> (String, ValueAccumulator) {
-        (self.key, self.acc)
+impl From<SingleAccumulator> for (String, ValueAccumulator) {
+    fn from(value: SingleAccumulator) -> Self {
+        (value.key, value.acc)
     }
 }
 
-impl Into<ValueAccumulator> for SingleAccumulator {
-    fn into(self) -> ValueAccumulator {
-        self.acc
+impl From<SingleAccumulator> for ValueAccumulator {
+    fn from(value: SingleAccumulator) -> Self {
+        value.acc
     }
 }
 
