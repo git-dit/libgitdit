@@ -18,7 +18,6 @@ use std::iter::FromIterator;
 
 use trailer::accumulation::{AccumulationPolicy, SingleAccumulator, ValueAccumulator};
 
-
 /// Metadata specification
 ///
 /// Use instances of this type for specifying the names and accumulation rules
@@ -38,7 +37,6 @@ impl<'k> TrailerSpec<'k> {
     }
 }
 
-
 /// Metadata specification for an issue's type
 ///
 pub const ISSUE_TYPE_SPEC: TrailerSpec = TrailerSpec {
@@ -52,7 +50,6 @@ pub const ISSUE_STATUS_SPEC: TrailerSpec = TrailerSpec {
     key: "Dit-status",
     accumulation: AccumulationPolicy::Latest,
 };
-
 
 /// Construct an accumulation map from a set of MetadataSpecifications
 ///
@@ -70,8 +67,9 @@ pub trait ToMap {
 }
 
 impl<'s, I, J> ToMap for I
-    where I: IntoIterator<Item = J>,
-          J: Borrow<TrailerSpec<'s>>
+where
+    I: IntoIterator<Item = J>,
+    J: Borrow<TrailerSpec<'s>>,
 {
     type Output = ::std::collections::HashMap<String, ValueAccumulator>;
 
@@ -79,9 +77,11 @@ impl<'s, I, J> ToMap for I
         self.into_iter()
             .map(|spec| {
                 let s = spec.borrow();
-                (s.key.to_string(), ValueAccumulator::from(s.accumulation.clone()))
+                (
+                    s.key.to_string(),
+                    ValueAccumulator::from(s.accumulation.clone()),
+                )
             })
             .collect()
     }
 }
-

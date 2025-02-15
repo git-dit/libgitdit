@@ -52,7 +52,6 @@ impl fmt::Display for TrailerKey {
     }
 }
 
-
 /// The Value of a Trailer:
 ///
 /// ```ignore
@@ -65,7 +64,6 @@ impl fmt::Display for TrailerKey {
 pub enum TrailerValue {
     Int(i64),
     String(String),
-
     // Maybe something like Name { name: String, email: String } ?
 }
 
@@ -89,7 +87,7 @@ impl TrailerValue {
     ///
     pub fn append(&mut self, slice: &str) {
         match self {
-            &mut TrailerValue::Int(i)    => *self = TrailerValue::String(i.to_string() + slice),
+            &mut TrailerValue::Int(i) => *self = TrailerValue::String(i.to_string() + slice),
             &mut TrailerValue::String(ref mut s) => s.push_str(slice),
         }
     }
@@ -104,12 +102,11 @@ impl Default for TrailerValue {
 impl fmt::Display for TrailerValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> RResult<(), fmt::Error> {
         match *self {
-            TrailerValue::Int(i)        => write!(f, "{}", i),
+            TrailerValue::Int(i) => write!(f, "{}", i),
             TrailerValue::String(ref s) => write!(f, "{}", s),
         }
     }
 }
-
 
 /// Trailer representation
 ///
@@ -127,7 +124,7 @@ impl Trailer {
     ///
     pub fn new(key: &str, value: &str) -> Trailer {
         Trailer {
-            key  : TrailerKey::from(String::from(key)),
+            key: TrailerKey::from(String::from(key)),
             value: TrailerValue::from_slice(value),
         }
     }
@@ -155,9 +152,6 @@ impl FromStr for Trailer {
             .ok_or_else(|| s.to_owned())
     }
 }
-
-
-
 
 #[cfg(test)]
 mod tests {

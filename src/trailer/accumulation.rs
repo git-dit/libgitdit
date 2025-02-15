@@ -30,7 +30,6 @@ pub enum AccumulationPolicy {
     List,
 }
 
-
 /// Accumulation helper for trailer values
 ///
 /// This type encapsulates the task of accumulating trailers in an appropriate
@@ -47,10 +46,12 @@ impl ValueAccumulator {
     ///
     pub fn process(&mut self, new_value: TrailerValue) {
         match self {
-            &mut ValueAccumulator::Latest(ref mut value) => if value.is_none() {
-                *value = Some(new_value);
-            },
-            &mut ValueAccumulator::List(ref mut values)  => values.push(new_value),
+            &mut ValueAccumulator::Latest(ref mut value) => {
+                if value.is_none() {
+                    *value = Some(new_value);
+                }
+            }
+            &mut ValueAccumulator::List(ref mut values) => values.push(new_value),
         }
     }
 }
@@ -58,8 +59,8 @@ impl ValueAccumulator {
 impl From<AccumulationPolicy> for ValueAccumulator {
     fn from(policy: AccumulationPolicy) -> Self {
         match policy {
-            AccumulationPolicy::Latest  => ValueAccumulator::Latest(None),
-            AccumulationPolicy::List    => ValueAccumulator::List(Vec::new()),
+            AccumulationPolicy::Latest => ValueAccumulator::Latest(None),
+            AccumulationPolicy::List => ValueAccumulator::List(Vec::new()),
         }
     }
 }
@@ -71,7 +72,7 @@ impl IntoIterator for ValueAccumulator {
     fn into_iter(self) -> Self::IntoIter {
         match self {
             ValueAccumulator::Latest(value) => Box::new(value.into_iter()),
-            ValueAccumulator::List(values)  => Box::new(values.into_iter()),
+            ValueAccumulator::List(values) => Box::new(values.into_iter()),
         }
     }
 }
@@ -81,7 +82,6 @@ impl Default for ValueAccumulator {
         ValueAccumulator::Latest(None)
     }
 }
-
 
 /// Accumulation trait for trailers
 ///
@@ -96,14 +96,14 @@ pub trait Accumulator {
     /// Process all trailers provided by some iterator
     ///
     fn process_all<I>(&mut self, iter: I)
-        where I: IntoIterator<Item = Trailer>
+    where
+        I: IntoIterator<Item = Trailer>,
     {
         for trailer in iter.into_iter() {
             self.process(trailer);
         }
     }
 }
-
 
 /// Trait for accumulators accumulating multiple values
 ///
@@ -124,7 +124,8 @@ pub trait MultiAccumulator {
 }
 
 impl<M> Accumulator for M
-    where M: MultiAccumulator
+where
+    M: MultiAccumulator,
 {
     fn process(&mut self, trailer: Trailer) {
         let (key, value) = trailer.into();
@@ -134,7 +135,8 @@ impl<M> Accumulator for M
 }
 
 impl<S> MultiAccumulator for collections::HashMap<String, ValueAccumulator, S>
-    where S: BuildHasher
+where
+    S: BuildHasher,
 {
     fn get(&self, key: &str) -> Option<&ValueAccumulator> {
         collections::HashMap::get(self, key)
@@ -155,7 +157,6 @@ impl MultiAccumulator for collections::BTreeMap<String, ValueAccumulator> {
     }
 }
 
-
 /// Accumulator for a single piece of metadata
 ///
 /// Use this accumulator if you only want a single item, e.g. the assignee of
@@ -170,7 +171,10 @@ impl SingleAccumulator {
     /// Create a new accumulator for trailers with the key specified
     ///
     pub fn new(key: String, policy: AccumulationPolicy) -> Self {
-        SingleAccumulator { key: key, acc: ValueAccumulator::from(policy) }
+        SingleAccumulator {
+            key: key,
+            acc: ValueAccumulator::from(policy),
+        }
     }
 
     /// Convert into an iterator over the accumulated values
@@ -201,31 +205,34 @@ impl Into<ValueAccumulator> for SingleAccumulator {
     }
 }
 
-
 pub struct SingleKeyTrailerAssemblyIterator<I>
-    where I: Iterator<Item = TrailerValue>
+where
+    I: Iterator<Item = TrailerValue>,
 {
     key: String,
     inner: I,
 }
 
 impl<I> SingleKeyTrailerAssemblyIterator<I>
-    where I: Iterator<Item = TrailerValue>
+where
+    I: Iterator<Item = TrailerValue>,
 {
     fn new(key: String, inner: I) -> Self {
-        SingleKeyTrailerAssemblyIterator { key: key, inner: inner }
+        SingleKeyTrailerAssemblyIterator {
+            key: key,
+            inner: inner,
+        }
     }
 }
 
 impl<I> Iterator for SingleKeyTrailerAssemblyIterator<I>
-    where I: Iterator<Item = TrailerValue>
+where
+    I: Iterator<Item = TrailerValue>,
 {
     type Item = (String, TrailerValue);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.inner
-            .next()
-            .map(|value| (self.key.clone(), value))
+        self.inner.next().map(|value| (self.key.clone(), value))
     }
 }
 
@@ -237,9 +244,6 @@ impl IntoIterator for SingleAccumulator {
         SingleKeyTrailerAssemblyIterator::new(self.key, self.acc.into_iter())
     }
 }
-
-
-
 
 #[cfg(test)]
 mod tests {
@@ -255,7 +259,10 @@ mod tests {
         acc.process(TrailerValue::from_slice("baz"));
 
         let mut values = acc.into_iter();
-        assert_eq!(values.next().expect("Could not retrieve value").to_string(), "foo-bar");
+        assert_eq!(
+            values.next().expect("Could not retrieve value").to_string(),
+            "foo-bar"
+        );
         assert_eq!(values.next(), None);
     }
 
@@ -266,8 +273,14 @@ mod tests {
         acc.process(TrailerValue::from_slice("baz"));
 
         let mut values = acc.into_iter();
-        assert_eq!(values.next().expect("Could not retrieve value").to_string(), "foo-bar");
-        assert_eq!(values.next().expect("Could not retrieve value").to_string(), "baz");
+        assert_eq!(
+            values.next().expect("Could not retrieve value").to_string(),
+            "foo-bar"
+        );
+        assert_eq!(
+            values.next().expect("Could not retrieve value").to_string(),
+            "baz"
+        );
         assert_eq!(values.next(), None);
     }
 
@@ -281,8 +294,8 @@ mod tests {
             (String::from("Assignee"), AccumulationPolicy::Latest),
             (String::from("Foo-bar"), AccumulationPolicy::List),
         ]
-            .into_iter()
-            .map(|(k, v)| (k, ValueAccumulator::from(v)));
+        .into_iter()
+        .map(|(k, v)| (k, ValueAccumulator::from(v)));
         let mut acc = ::std::collections::BTreeMap::from_iter(val_accs);
 
         acc.process(Trailer::new("Foo-bar", "baz"));
@@ -297,7 +310,9 @@ mod tests {
                 .expect("Could not retrieve value from map")
                 .into_iter();
             assert_eq!(
-                vals.next().expect("Could not retrieve value from iterator").to_string(),
+                vals.next()
+                    .expect("Could not retrieve value from iterator")
+                    .to_string(),
                 "Foo Bar <foo.bar@example.com>"
             );
             assert_eq!(vals.next(), None);
@@ -309,11 +324,15 @@ mod tests {
                 .expect("Could not retrieve value from map")
                 .into_iter();
             assert_eq!(
-                vals.next().expect("Could not retrieve value from iterator").to_string(),
+                vals.next()
+                    .expect("Could not retrieve value from iterator")
+                    .to_string(),
                 "baz"
             );
             assert_eq!(
-                vals.next().expect("Could not retrieve value from iterator").to_string(),
+                vals.next()
+                    .expect("Could not retrieve value from iterator")
+                    .to_string(),
                 "bam"
             );
             assert_eq!(vals.next(), None);
@@ -331,7 +350,10 @@ mod tests {
         acc.process(Trailer::new("Assignee", "Mee Seeks <meeseeks@rm.com>"));
 
         let mut vals = acc.into_iter();
-        assert_eq!(vals.next().expect("Could not retrieve value").1.to_string(), "baz");
+        assert_eq!(
+            vals.next().expect("Could not retrieve value").1.to_string(),
+            "baz"
+        );
         assert_eq!(vals.next(), None);
     }
 
@@ -344,9 +366,14 @@ mod tests {
         acc.process(Trailer::new("Assignee", "Mee Seeks <meeseeks@rm.com>"));
 
         let mut vals = acc.into_iter();
-        assert_eq!(vals.next().expect("Could not retrieve value").1.to_string(), "baz");
-        assert_eq!(vals.next().expect("Could not retrieve value").1.to_string(), "bam");
+        assert_eq!(
+            vals.next().expect("Could not retrieve value").1.to_string(),
+            "baz"
+        );
+        assert_eq!(
+            vals.next().expect("Could not retrieve value").1.to_string(),
+            "bam"
+        );
         assert_eq!(vals.next(), None);
     }
 }
-
