@@ -130,9 +130,9 @@ impl Trailer {
     }
 }
 
-impl Into<(TrailerKey, TrailerValue)> for Trailer {
-    fn into(self) -> (TrailerKey, TrailerValue) {
-        (self.key, self.value)
+impl From<Trailer> for (TrailerKey, TrailerValue) {
+    fn from(value: Trailer) -> Self {
+        (value.key, value.value)
     }
 }
 
