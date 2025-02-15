@@ -172,7 +172,7 @@ impl SingleAccumulator {
     ///
     pub fn new(key: String, policy: AccumulationPolicy) -> Self {
         SingleAccumulator {
-            key: key,
+            key,
             acc: ValueAccumulator::from(policy),
         }
     }
@@ -218,10 +218,7 @@ where
     I: Iterator<Item = TrailerValue>,
 {
     fn new(key: String, inner: I) -> Self {
-        SingleKeyTrailerAssemblyIterator {
-            key: key,
-            inner: inner,
-        }
+        SingleKeyTrailerAssemblyIterator { key, inner }
     }
 }
 

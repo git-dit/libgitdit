@@ -66,8 +66,8 @@ impl<'a> TrailerFilter<'a> {
     ///
     pub fn new(trailer: TrailerSpec<'a>, matcher: ValueMatcher) -> Self {
         Self {
-            trailer: trailer,
-            matcher: matcher,
+            trailer,
+            matcher,
         }
     }
 
