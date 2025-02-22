@@ -38,8 +38,8 @@ impl ValueMatcher {
     pub fn matches(&self, value: &TrailerValue) -> bool {
         match self {
             ValueMatcher::Any => true,
-            ValueMatcher::Equals(ref v) => value == v,
-            ValueMatcher::Contains(ref s) => value.to_string().contains(s),
+            ValueMatcher::Equals(v) => value == v,
+            ValueMatcher::Contains(s) => value.to_string().contains(s),
         }
     }
 

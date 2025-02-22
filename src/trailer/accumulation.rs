@@ -46,12 +46,12 @@ impl ValueAccumulator {
     ///
     pub fn process(&mut self, new_value: TrailerValue) {
         match self {
-            ValueAccumulator::Latest(ref mut value) => {
+            ValueAccumulator::Latest(value) => {
                 if value.is_none() {
                     *value = Some(new_value);
                 }
             }
-            ValueAccumulator::List(ref mut values) => values.push(new_value),
+            ValueAccumulator::List(values) => values.push(new_value),
         }
     }
 }

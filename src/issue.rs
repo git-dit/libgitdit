@@ -298,7 +298,7 @@ impl<'r, R: Database<'r> + Traversible<'r>> Issue<'r, R> {
 
     /// Prepare a messages iterator which will terminate at the initial message
     pub fn terminated_messages(&self) -> error::Result<R::TraversalBuilder, R::InnerError> {
-        use object::commit::Commit;
+        use commit::Commit;
 
         self.repo()
             .traversal_builder()?
@@ -338,8 +338,9 @@ pub(crate) const DIT_REF_PART: &str = "dit";
 mod tests {
     use super::*;
 
-    use object::commit::Commit;
-    use object::tests::TestOdb;
+    use crate::object::tests::TestOdb;
+
+    use commit::Commit;
     use reference::tests::TestStore;
     use reference::Reference;
 
