@@ -17,7 +17,7 @@
 use std::collections;
 use std::hash::BuildHasher;
 
-use trailer::{Trailer, TrailerValue};
+use super::{Trailer, TrailerValue};
 
 /// Policy for accumulating trailers
 ///

@@ -20,9 +20,9 @@
 
 use std::borrow::Borrow;
 
-use trailer::accumulation::ValueAccumulator;
-use trailer::spec::TrailerSpec;
-use trailer::TrailerValue;
+use super::accumulation::ValueAccumulator;
+use super::spec::TrailerSpec;
+use super::TrailerValue;
 
 /// Type for matching TrailerValues
 ///
