@@ -11,10 +11,11 @@
 //! issue handling utilities for repositories.
 
 use crate::error::{self, ResultExt};
+use crate::issue::{self, Issue};
 use crate::object::{self, commit};
 use crate::reference;
+use crate::remote;
 use crate::traversal::Traversible;
-use issue::Issue;
 
 /// Set of unique issues
 pub type UniqueIssues<'r, R> = std::collections::HashSet<Issue<'r, R>>;
