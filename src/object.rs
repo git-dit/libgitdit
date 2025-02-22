@@ -12,7 +12,7 @@ use crate::error::{self, ResultExt};
 pub mod commit;
 pub mod tree;
 
-use self::commit::Commit;
+use commit::Commit;
 
 /// An object database
 pub trait Database<'r>: Base {
@@ -50,7 +50,7 @@ pub trait Database<'r>: Base {
         Self: Sized,
         'r: 'c,
     {
-        use self::tree::Builder;
+        use tree::Builder;
 
         let author = self.author()?;
         let committer = self.committer()?;
