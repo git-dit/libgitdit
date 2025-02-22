@@ -245,9 +245,9 @@ impl<'r, R: Database<'r>> Issue<'r, R> {
         R: reference::Store<'r>,
         R::Commit: 'c,
     {
-        use self::commit::Commit;
+        use commit::Commit;
 
-        let parents: Vec<_> = std::iter::FromIterator::from_iter(parents);
+        let parents: Vec<_> = FromIterator::from_iter(parents);
 
         let id = self
             .repo()
