@@ -285,15 +285,13 @@ mod tests {
 
     #[test]
     fn btree_map_accumulator() {
-        use std::iter::FromIterator;
-
         let val_accs = vec![
             (String::from("Assignee"), AccumulationPolicy::Latest),
             (String::from("Foo-bar"), AccumulationPolicy::List),
         ]
         .into_iter()
         .map(|(k, v)| (k, ValueAccumulator::from(v)));
-        let mut acc = ::std::collections::BTreeMap::from_iter(val_accs);
+        let mut acc = collections::BTreeMap::from_iter(val_accs);
 
         acc.process(Trailer::new("Foo-bar", "baz"));
         acc.process(Trailer::new("Assignee", "Foo Bar <foo.bar@example.com>"));

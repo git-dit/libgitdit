@@ -14,7 +14,6 @@
 //!
 
 use std::borrow::Borrow;
-use std::iter::FromIterator;
 
 use super::accumulation::{AccumulationPolicy, SingleAccumulator, ValueAccumulator};
 
@@ -71,7 +70,7 @@ where
     I: IntoIterator<Item = J>,
     J: Borrow<TrailerSpec<'s>>,
 {
-    type Output = ::std::collections::HashMap<String, ValueAccumulator>;
+    type Output = std::collections::HashMap<String, ValueAccumulator>;
 
     fn into_map(self) -> Self::Output {
         self.into_iter()

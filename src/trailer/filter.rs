@@ -80,7 +80,7 @@ impl<'a> TrailerFilter<'a> {
     ///
     pub fn matches(
         &self,
-        accumulator: &::std::collections::HashMap<String, ValueAccumulator>,
+        accumulator: &std::collections::HashMap<String, ValueAccumulator>,
     ) -> bool {
         let values = accumulator
             .get(self.trailer.key)
