@@ -246,7 +246,6 @@ impl IntoIterator for SingleAccumulator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use trailer::{Trailer, TrailerValue};
 
     // ValueAccumulator tests
 
