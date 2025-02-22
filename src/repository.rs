@@ -121,8 +121,6 @@ pub trait Repository<'r>: reference::Store<'r> + Sized {
     ///
     /// This function returns all known issues known to the DIT repo.
     fn issues(&'r self) -> error::Result<UniqueIssues<'r, Self>, Self::InnerError> {
-        use std::iter::FromIterator;
-
         use remote::Names;
 
         let mut issues: UniqueIssues<_> = Result::from_iter(self.issues_with_prefix("refs")?)?;
