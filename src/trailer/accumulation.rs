@@ -17,7 +17,7 @@
 use std::collections;
 use std::hash::BuildHasher;
 
-use trailer::{Trailer, TrailerValue};
+use super::{Trailer, TrailerValue};
 
 /// Policy for accumulating trailers
 ///
@@ -46,12 +46,12 @@ impl ValueAccumulator {
     ///
     pub fn process(&mut self, new_value: TrailerValue) {
         match self {
-            ValueAccumulator::Latest(ref mut value) => {
+            ValueAccumulator::Latest(value) => {
                 if value.is_none() {
                     *value = Some(new_value);
                 }
             }
-            ValueAccumulator::List(ref mut values) => values.push(new_value),
+            ValueAccumulator::List(values) => values.push(new_value),
         }
     }
 }
@@ -246,7 +246,6 @@ impl IntoIterator for SingleAccumulator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use trailer::{Trailer, TrailerValue};
 
     // ValueAccumulator tests
 
@@ -286,15 +285,13 @@ mod tests {
 
     #[test]
     fn btree_map_accumulator() {
-        use std::iter::FromIterator;
-
         let val_accs = vec![
             (String::from("Assignee"), AccumulationPolicy::Latest),
             (String::from("Foo-bar"), AccumulationPolicy::List),
         ]
         .into_iter()
         .map(|(k, v)| (k, ValueAccumulator::from(v)));
-        let mut acc = ::std::collections::BTreeMap::from_iter(val_accs);
+        let mut acc = collections::BTreeMap::from_iter(val_accs);
 
         acc.process(Trailer::new("Foo-bar", "baz"));
         acc.process(Trailer::new("Assignee", "Foo Bar <foo.bar@example.com>"));

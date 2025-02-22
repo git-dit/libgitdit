@@ -20,9 +20,9 @@
 
 use std::borrow::Borrow;
 
-use trailer::accumulation::ValueAccumulator;
-use trailer::spec::TrailerSpec;
-use trailer::TrailerValue;
+use super::accumulation::ValueAccumulator;
+use super::spec::TrailerSpec;
+use super::TrailerValue;
 
 /// Type for matching TrailerValues
 ///
@@ -38,8 +38,8 @@ impl ValueMatcher {
     pub fn matches(&self, value: &TrailerValue) -> bool {
         match self {
             ValueMatcher::Any => true,
-            ValueMatcher::Equals(ref v) => value == v,
-            ValueMatcher::Contains(ref s) => value.to_string().contains(s),
+            ValueMatcher::Equals(v) => value == v,
+            ValueMatcher::Contains(s) => value.to_string().contains(s),
         }
     }
 
@@ -80,7 +80,7 @@ impl<'a> TrailerFilter<'a> {
     ///
     pub fn matches(
         &self,
-        accumulator: &::std::collections::HashMap<String, ValueAccumulator>,
+        accumulator: &std::collections::HashMap<String, ValueAccumulator>,
     ) -> bool {
         let values = accumulator
             .get(self.trailer.key)

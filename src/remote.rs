@@ -12,7 +12,7 @@
 use std::str::Utf8Error;
 
 use crate::base::Base;
-use issue::Issue;
+use crate::issue::Issue;
 
 /// Container for remote names
 pub trait Names {
