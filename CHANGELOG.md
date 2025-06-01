@@ -1,5 +1,57 @@
 # git-dit ChangeLog
 
+## Unreleased
+
+### Added
+ - Added `gc::CollectableRefs::head` fn returning a collectable head reference.
+ - Added `object` module, including `Database` trait for retrieval of commits
+   and trees, as well as traits for creating and interacting with those.
+ - Added traits `remote::Name` and `remote::Names` for generating remote related
+   parts of reference names and refspecs.
+ - Added `reference` module, including the `Reference` and `Store` traits for
+   retrieving and interacting with references, as well as the `Parts` and `Kind`
+   types for extracting information from reference names.
+ - Added `traversal` module, including the `Traversible` and `TraversalBuilder`
+   traits for traversing the commit graph.
+ - Added `base` module including the `Base` trait providing some associated
+   types, serving as a base for other traits.
+
+### Changed
+ - Switched to Rust edition 2024.
+ - Fixed code style.
+ - Made `git2` an optional dependency.
+ - Rename `repository::RepositoryExt` to `repository::Repository`.
+ - Make `issue::Issue::id` return a reference to an OID.
+ - Made `gc::CollectableRefs` generic over all `repository::Repository` types.
+ - Made `issue::Issue` generic over all `repository::Repository` types.
+ - Made all `repository::RepositoryExt` methods provided methods based on
+   `reference::Store` and other traits.
+ - Made `repository::RepositoryExt` require `reference::Store`.
+ - Made `repository::RepositoryExt::issue_with_message` require `Self` to be
+   `traversal::Traversible`.
+ - Moved `repository::RepositoryExt::first_parent_messages` to
+   `traversal::Traversible` trait.
+ - Made `repository::RepositoryExt::issue_with_message` take the message's OID
+   rather than a commit object.
+ - Rewrote `error::Error`, making it generic over the git-specific inner error
+   type and allow for more inner error types.
+
+### Removed
+ - Removed `gc::CollectableRefs::push_ref_parents` fn.
+ - Removed `gc::ReferenceCollector` type.
+ - Removed `repository::Repository::colelctable_refs` fn.
+ - Removed `message` module and all items it provided.
+ - Removed `Issue::ref_part` and `Issue::new` fns.
+ - Removed `iter` module and all items it provided.
+ - Removed `repository::RepositoryExt::issue_messages_iter` fn.
+ - Removed `repository::RepositoryExt::empty_tree` fn.
+ - Removed `error::ResultExt` from the public API. It is now only used
+   internally.
+
+### Fixed
+ - Use `Result`s of `git2::Revwalk::reset`, `git2::Revwalk::set_sorting` and
+   `git2::Revwalk::simplify_first_parent`.
+
 ## v0.5.0 (2023-07-08)
 
 Changes:
